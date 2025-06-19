@@ -9,26 +9,64 @@ import cookieParser from "cookie-parser";
 import createError from "http-errors";
 import routes from "./routes/index";
 import { CreateErrorResponse } from "./utils/responseHandler";
+import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 
 // Load environment variables
 dotenv.config();
 const PORT = process.env.PORT || 3000;
-const DB_URL = process.env.DB_URL || "mongodb://localhost:27017/golden_hr";
+const MONGO_URL = process.env.MONGO_URL ;
 const COOKIE_SECRET = process.env.COOKIE_SECRET || "your_cookie_secret_here";
+if(!MONGO_URL){
+    throw new Error("❌ MONGO_URL environment variable is not defined!");
+}
 
 // Database connection function
 const connectDB = async () => {
   try {
-    await mongoose.connect(DB_URL);
-    console.log("Connected to MongoDB");
-    console.log(`Database URL: ${DB_URL}`);
+    await mongoose.connect(MONGO_URL);
+    console.log(`Connected to MongoDB: ${MONGO_URL}`);
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
     process.exit(1);
   }
 };
 
-// Initialize Express app only after DB connection
+// Swagger configuration
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Golden HR API",
+      version: "1.0.0",
+      description: "API documentation for Golden HR Backend",
+      contact: {
+        name: "Support",
+        email: "support@goldenhr.com",
+      },
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: "Development server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+  },
+  apis: ["./src/controllers/*.ts"],
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+// Initialize Express app
 const initializeApp = async () => {
   await connectDB();
 
@@ -49,6 +87,9 @@ const initializeApp = async () => {
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser(COOKIE_SECRET));
 
+  // Swagger UI
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
   // Routes
   app.use("/api", routes);
 
@@ -67,6 +108,7 @@ const initializeApp = async () => {
   // Start server
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
   });
 };
 

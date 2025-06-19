@@ -1,0 +1,1 @@
+interface attendanceSchema = new Schema<>
