@@ -11,8 +11,12 @@ export const AUTH_ERRORS = {
   JWT_NOT_DEFINED: "JWT secret not defined",
   INVALID_TOKEN: "Invalid or expired token",
   ROLE_NOT_FOUND: "Role not found",
-  EMAIL_AND_PASSWORD_WRONG: "Invalid email or password",
+  EMAIL_OR_PASSWORD_WRONG: "Invalid email or password",
   EMAIL_NOT_FOUND: "Email not found",
+  EMAIL_ALREADY_EXISTS:"Email already exists",
   WRONG_PASSWORD: "Incorrect password",
-  OTP_EXPIRED: "OTP expired or invalid",
+  OTP_EXPIRED_OR_INVALID: "OTP expired or invalid",
+  INVALID_OR_EXPIRED_TOKEN:"Invalid or expired token",
+  USER_NOT_FOUND: "User not found"
 };
+
