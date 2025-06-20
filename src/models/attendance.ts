@@ -1,38 +1,41 @@
-// models/attendance.model.js
 import { Schema, model } from "mongoose";
+import { AttendanceDocument } from "../types/attendance";
 
-const locationSchema = new Schema({
-    // Dành cho MÁY TÍNH: Vẽ bản đồ, tính toán
+const locationSchema = new Schema(
+  {
     coordinates: {
-        type: { type: String, enum: ['Point'], default: 'Point' },
-        coordinates: { type: [Number], required: true } // [kinh độ, vĩ độ]
+      type: { type: String, enum: ["Point"], default: "Point" },
+      coordinates: { type: [Number], required: true },
     },
-    // Dành cho CON NGƯỜI: Hiển thị cho dễ đọc
-    address: { 
-        type: String,
-        required: true
-    }
-}, { _id: false }); // Không cần _id cho sub-document này
+    address: { type: String, required: true },
+  },
+  { _id: false }
+);
 
-const attendanceEntrySchema = new Schema({
+const attendanceEntrySchema = new Schema(
+  {
     time: { type: Date, required: true },
-    imageUrl: { type: String, required: true }, // URL ảnh từ Cloudinary
-    location: { type: locationSchema, required: true }
-}, { _id: false });
+    imageUrl: { type: String, required: true },
+    location: { type: locationSchema, required: true },
+  },
+  { _id: false }
+);
 
-const attendanceSchema = new Schema({
+const attendanceSchema = new Schema<AttendanceDocument>(
+  {
     employeeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    workDate: { type: String, required: true, index: true }, // 'YYYY-MM-DD'
+    workDate: { type: String, required: true, index: true },
     checkIn: { type: attendanceEntrySchema },
     checkOut: { type: attendanceEntrySchema },
     status: {
-        type: String,
-        enum: ["PRESENT", "ON_LEAVE"], // Bỏ ABSENT vì không check-in nghĩa là absent
-        default: "PRESENT"
+      type: String,
+      enum: ["PRESENT", "ON_LEAVE"],
+      default: "PRESENT",
     },
-}, { timestamps: true });
+  },
+  { timestamps: true }
+);
 
-// Index để đảm bảo 1 người 1 bản ghi/ngày và tìm kiếm nhanh
 attendanceSchema.index({ employeeId: 1, workDate: 1 }, { unique: true });
 
-export default model("Attendance", attendanceSchema);
+export default model<AttendanceDocument>("Attendance", attendanceSchema);

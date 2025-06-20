@@ -1,10 +1,14 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import * as AuthService from "../services/authService";
-import { CreateSuccessResponse, CreateErrorResponse, CreateCookieResponse } from "../utils/responseHandler";
+import {
+  CreateSuccessResponse,
+  CreateErrorResponse,
+  CreateCookieResponse,
+} from "../utils/responseHandler";
 import User from "../models/user";
 import { AUTH_ERRORS } from "../utils/constants";
-import multer from 'multer';
+import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -40,7 +44,7 @@ interface LoginRequestBody {
  *                 type: string
  *                 format: email
  *                 description: User's email address
- *                 example: user1@gamail.com
+ *                 example: user1@gmail.com
  *               password:
  *                 type: string
  *                 format: password
@@ -81,8 +85,15 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, fullname } = req.body as RegisterRequestBody;
     const role = "user";
-    const userData = await AuthService.CreateAnUser(email, password, fullname, role);
-    return CreateSuccessResponse(res, 201, { user: { id: userData._id, email, fullname, role } });
+    const userData = await AuthService.CreateAnUser(
+      email,
+      password,
+      fullname,
+      role
+    );
+    return CreateSuccessResponse(res, 201, {
+      user: { id: userData._id, email, fullname, role },
+    });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
   }
@@ -145,7 +156,9 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body as LoginRequestBody;
     const userId = await AuthService.CheckLogin(email, password);
     const exp = Date.now() + 60 * 60 * 1000; // 1 hour
-    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET!, { expiresIn: "1h" });
+    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET!, {
+      expiresIn: "1h",
+    });
     CreateCookieResponse(res, "token", token, exp);
     return CreateSuccessResponse(res, 200, { token, userId });
   } catch (error: any) {
@@ -228,7 +241,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     await AuthService.ForgotPassword(email);
-    return CreateSuccessResponse(res, 200, { message: "If your email is registered, you will receive a password reset OTP." });
+    return CreateSuccessResponse(res, 200, {
+      message:
+        "If your email is registered, you will receive a password reset OTP.",
+    });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
   }
@@ -266,7 +282,9 @@ export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { resetToken, newPassword } = req.body;
     await AuthService.ResetPasswordWithToken(resetToken, newPassword);
-    return CreateSuccessResponse(res, 200, { message: "Password has been reset successfully." });
+    return CreateSuccessResponse(res, 200, {
+      message: "Password has been reset successfully.",
+    });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
   }
@@ -310,11 +328,17 @@ export const changePassword = async (req: Request, res: Response) => {
     const { oldPassword, newPassword } = req.body;
 
     if (!userId) {
-      return CreateErrorResponse(res, 401, "Unauthorized: User ID not found in token.");
+      return CreateErrorResponse(
+        res,
+        401,
+        "Unauthorized: User ID not found in token."
+      );
     }
 
     await AuthService.ChangePassword(userId, oldPassword, newPassword);
-    return CreateSuccessResponse(res, 200, { message: "Password changed successfully." });
+    return CreateSuccessResponse(res, 200, {
+      message: "Password changed successfully.",
+    });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
   }
@@ -335,7 +359,9 @@ export const logout = (req: Request, res: Response) => {
     httpOnly: true,
     expires: new Date(0),
   });
-  return CreateSuccessResponse(res, 200, { message: "Logged out successfully" });
+  return CreateSuccessResponse(res, 200, {
+    message: "Logged out successfully",
+  });
 };
 
 /**
@@ -375,13 +401,17 @@ export const logout = (req: Request, res: Response) => {
 export const getUsersForDropdown = async (req: Request, res: Response) => {
   try {
     const users = await User.find({ isdeleted: false, isdisable: false })
-      .select('fullname email')
+      .select("fullname email")
       .lean();
-    return CreateSuccessResponse(res, 200, users.map(user => ({
-      id: user._id.toString(),
-      fullname: user.fullname,
-      email: user.email,
-    })));
+    return CreateSuccessResponse(
+      res,
+      200,
+      users.map((user) => ({
+        id: user._id.toString(),
+        fullname: user.fullname,
+        email: user.email,
+      }))
+    );
   } catch (error: any) {
     return CreateErrorResponse(res, 500, error.message);
   }
@@ -437,14 +467,20 @@ export const uploadEmployeeFace = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     if (!req.file) {
-      return CreateErrorResponse(res, 400, 'No image file provided');
+      return CreateErrorResponse(res, 400, "No image file provided");
     }
     const user = await User.findById(userId);
     if (!user || user.isdeleted || user.isdisable) {
       return CreateErrorResponse(res, 400, AUTH_ERRORS.USER_NOT_FOUND);
     }
-    const imageUrl = await AuthService.UploadEmployeeFace(userId, req.file.buffer);
-    return CreateSuccessResponse(res, 200, { imageUrl, user: { id: user._id, fullname: user.fullname, email: user.email } });
+    const imageUrl = await AuthService.UploadEmployeeFace(
+      userId,
+      req.file.buffer
+    );
+    return CreateSuccessResponse(res, 200, {
+      imageUrl,
+      user: { id: user._id, fullname: user.fullname, email: user.email },
+    });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
   }

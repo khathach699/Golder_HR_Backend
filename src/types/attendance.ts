@@ -1,13 +1,22 @@
-import { IUserDocument } from "./user";
+import { Document, Types } from 'mongoose';
 
-export interface Attendance {
-    user: IUserDocument['_id'];
-    checkInTime?: Date;
-    checkOutTime?: Date;
-    faceVerification: boolean;
-    status: "pending" | "approved" | "rejected";
-    imageUrl?: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-    deletedAt?: Date;
+export interface Location {
+  coordinates: { type: string; coordinates: [number, number] };
+  address: string;
+}
+
+export interface AttendanceEntry {
+  time: Date;
+  imageUrl: string;
+  location: Location;
+}
+
+export interface AttendanceDocument extends Document {
+  employeeId: Types.ObjectId;
+  workDate: string;
+  checkIn?: AttendanceEntry;
+  checkOut?: AttendanceEntry;
+  status: 'PRESENT' | 'ON_LEAVE';
+  createdAt: Date;
+  updatedAt: Date;
 }
