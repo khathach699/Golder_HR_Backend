@@ -1,4 +1,5 @@
-import { Document } from "mongoose";
+// File: src/types/user.ts
+import { Document } from 'mongoose';
 
 export interface IUser {
   fullname: string;
@@ -7,6 +8,7 @@ export interface IUser {
   avatar?: string;
   point?: number;
   isdisable?: boolean;
+  referenceImageUrl?: string; // Changed from String to string
   role: string | { name: string };
   organization?: string;
   otpCode?: string;

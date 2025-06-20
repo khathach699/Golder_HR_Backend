@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import * as AuthService from "../services/authService";
 import { CreateSuccessResponse, CreateErrorResponse, CreateCookieResponse } from "../utils/responseHandler";
+import User from "../models/user";
+import { AUTH_ERRORS } from "../utils/constants";
+import multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 interface RegisterRequestBody {
   email: string;
@@ -71,15 +76,6 @@ interface LoginRequestBody {
  *                           type: string
  *       400:
  *         description: Bad request
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
  */
 export const register = async (req: Request, res: Response) => {
   try {
@@ -143,15 +139,6 @@ export const register = async (req: Request, res: Response) => {
  *               example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Path=/; Max-Age=3600
  *       400:
  *         description: Bad request
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
  */
 export const login = async (req: Request, res: Response) => {
   try {
@@ -204,14 +191,13 @@ export const login = async (req: Request, res: Response) => {
  *         description: Invalid or expired OTP.
  */
 export const verifyOtp = async (req: Request, res: Response) => {
-    try {
-        const { otp } = req.body;
-  
-        const resetToken = await AuthService.VerifyOtpAndGenerateResetToken(otp);
-        return CreateSuccessResponse(res, 200, { resetToken });
-    } catch (error: any) {
-        return CreateErrorResponse(res, 400, error.message);
-    }
+  try {
+    const { otp } = req.body;
+    const resetToken = await AuthService.VerifyOtpAndGenerateResetToken(otp);
+    return CreateSuccessResponse(res, 200, { resetToken });
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
 };
 
 /**
@@ -247,6 +233,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     return CreateErrorResponse(res, 400, error.message);
   }
 };
+
 /**
  * @swagger
  * /api/auth/reset-password:
@@ -276,16 +263,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
  *         description: Invalid or expired reset token.
  */
 export const resetPassword = async (req: Request, res: Response) => {
-    try {
-        const { resetToken, newPassword } = req.body;
-        // Gọi service đã được cập nhật, sử dụng token thay vì otp
-        await AuthService.ResetPasswordWithToken(resetToken, newPassword);
-        return CreateSuccessResponse(res, 200, { message: "Password has been reset successfully." });
-    } catch (error: any) {
-        return CreateErrorResponse(res, 400, error.message);
-    }
+  try {
+    const { resetToken, newPassword } = req.body;
+    await AuthService.ResetPasswordWithToken(resetToken, newPassword);
+    return CreateSuccessResponse(res, 200, { message: "Password has been reset successfully." });
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
 };
-
 
 /**
  * @swagger
@@ -320,20 +305,19 @@ export const resetPassword = async (req: Request, res: Response) => {
  *         description: Unauthorized.
  */
 export const changePassword = async (req: Request, res: Response) => {
-    try {
-        // Lấy userId từ token JWT đã được middleware xác thực
-        const userId = (req as any).user.id; // Giả sử middleware của bạn gán user vào req.user
-        const { oldPassword, newPassword } = req.body;
+  try {
+    const userId = (req as any).user.id;
+    const { oldPassword, newPassword } = req.body;
 
-        if (!userId) {
-            return CreateErrorResponse(res, 401, "Unauthorized: User ID not found in token.");
-        }
-
-        await AuthService.ChangePassword(userId, oldPassword, newPassword);
-        return CreateSuccessResponse(res, 200, { message: "Password changed successfully." });
-    } catch (error: any) {
-        return CreateErrorResponse(res, 400, error.message);
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized: User ID not found in token.");
     }
+
+    await AuthService.ChangePassword(userId, oldPassword, newPassword);
+    return CreateSuccessResponse(res, 200, { message: "Password changed successfully." });
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
 };
 
 /**
@@ -347,9 +331,121 @@ export const changePassword = async (req: Request, res: Response) => {
  *         description: User logged out successfully by clearing the cookie.
  */
 export const logout = (req: Request, res: Response) => {
-    res.cookie("token", "", {
-        httpOnly: true,
-        expires: new Date(0), // Set cookie to expire immediately
-    });
-    return CreateSuccessResponse(res, 200, { message: "Logged out successfully" });
+  res.cookie("token", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+  return CreateSuccessResponse(res, 200, { message: "Logged out successfully" });
+};
+
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Get list of active users for dropdown (Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       fullname:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+export const getUsersForDropdown = async (req: Request, res: Response) => {
+  try {
+    const users = await User.find({ isdeleted: false, isdisable: false })
+      .select('fullname email')
+      .lean();
+    return CreateSuccessResponse(res, 200, users.map(user => ({
+      id: user._id.toString(),
+      fullname: user.fullname,
+      email: user.email,
+    })));
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/auth/upload-face/{userId}:
+ *   post:
+ *     summary: Upload employee's face image (Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the employee selected from the dropdown
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Face image file
+ *     responses:
+ *       200:
+ *         description: Face image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imageUrl:
+ *                       type: string
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Unauthorized
+ */
+export const uploadEmployeeFace = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    if (!req.file) {
+      return CreateErrorResponse(res, 400, 'No image file provided');
+    }
+    const user = await User.findById(userId);
+    if (!user || user.isdeleted || user.isdisable) {
+      return CreateErrorResponse(res, 400, AUTH_ERRORS.USER_NOT_FOUND);
+    }
+    const imageUrl = await AuthService.UploadEmployeeFace(userId, req.file.buffer);
+    return CreateSuccessResponse(res, 200, { imageUrl, user: { id: user._id, fullname: user.fullname, email: user.email } });
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
 };

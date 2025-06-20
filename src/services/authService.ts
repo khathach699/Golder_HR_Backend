@@ -6,6 +6,7 @@ import User from "../models/user";
 import Role from "../models/role";
 import { AUTH_ERRORS } from '../utils/constants';
 import { sendMailForgotPassword } from '../utils/mailer'; // Đảm bảo bạn đã có file này
+import { uploadToCloudinary } from '../utils/cloudinary';
 
 // === HÀM LẤY DỮ LIỆU ===
 export const GetUserByID = async (id: string) => {
@@ -120,4 +121,16 @@ export const ChangePassword = async (userId: string, oldPassword: string, newPas
   
   user.password = newPassword;
   await user.save();
+};
+
+export const UploadEmployeeFace = async (userId: string, file: Buffer): Promise<string> => {
+  const user = await User.findById(userId);
+  if (!user || user.isdeleted || user.isdisable) {
+    throw new Error(AUTH_ERRORS.USER_NOT_FOUND);
+  }
+
+  const imageUrl = await uploadToCloudinary(file, 'employee_faces');
+  user.referenceImageUrl = imageUrl;
+  await user.save();
+  return imageUrl;
 };

@@ -17,6 +17,8 @@ export const AUTH_ERRORS = {
   WRONG_PASSWORD: "Incorrect password",
   OTP_EXPIRED_OR_INVALID: "OTP expired or invalid",
   INVALID_OR_EXPIRED_TOKEN:"Invalid or expired token",
-  USER_NOT_FOUND: "User not found"
+  USER_NOT_FOUND: "User not found",
+ 
+  USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE: 'User not found or no reference image provided',
 };
 

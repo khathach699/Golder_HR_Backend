@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+// Load environment variables
+dotenv.config();
 import express, { Express, Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -12,9 +14,10 @@ import { CreateErrorResponse } from "./utils/responseHandler";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
-// Load environment variables
-dotenv.config();
-const PORT = process.env.PORT || 3000;
+
+
+
+const PORT = process.env.PORT || 3000
 const MONGO_URL = process.env.MONGO_URL ;
 const COOKIE_SECRET = process.env.COOKIE_SECRET || "your_cookie_secret_here";
 if(!MONGO_URL){
@@ -60,9 +63,15 @@ const swaggerOptions = {
         },
       },
     },
+    security: [ 
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: ["./src/controllers/*.ts"],
 };
+
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
