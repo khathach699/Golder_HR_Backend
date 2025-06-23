@@ -9,7 +9,7 @@ import User from "../models/user";
 import { AUTH_ERRORS } from "../utils/constants";
 
 const upload = multer({ storage: multer.memoryStorage() });
-import * as AuthService from "../services/authService";
+import * as AttendanceService from "../services/attendanceService";
 
 /**
  * @swagger
@@ -107,7 +107,7 @@ export const checkIn = async (req: Request, res: Response) => {
 
 /**
  * @swagger
- * /api/attendance/check-out:
+ * /api/auth/check-out:
  *   post:
  *     summary: Employee check-out with face verification
  *     tags: [Attendance]
@@ -203,16 +203,15 @@ export const checkOut = async (req: Request, res: Response) => {
 };
 /**
  * @swagger
- * /api/attendance/dropdown:
+ * /api/attendance/users-dropdown:
  *   get:
- *     summary: Lấy danh sách người dùng đang hoạt động cho dropdown
- *     description: API này trả về danh sách rút gọn các người dùng (chỉ bao gồm id, fullname, email) đang hoạt động trong hệ thống. Thường được sử dụng để điền vào các trường lựa chọn (dropdown/select). Yêu cầu quyền admin.
- *     tags: [Users]
+ *     summary: Get list of active users for dropdown (Admin only)
+ *     tags: [Attendance]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Trả về thành công danh sách người dùng.
+ *         description: List of users returned successfully
  *         content:
  *           application/json:
  *             schema:
@@ -220,7 +219,6 @@ export const checkOut = async (req: Request, res: Response) => {
  *               properties:
  *                 success:
  *                   type: boolean
- *                   example: true
  *                 data:
  *                   type: array
  *                   items:
@@ -228,21 +226,19 @@ export const checkOut = async (req: Request, res: Response) => {
  *                     properties:
  *                       id:
  *                         type: string
- *                         description: ID của người dùng
- *                         example: "65a4e5f3c2b8a7b9e3e4f1c1"
+ *                         example: "60c72b2f9b1e8b001c8f1234"
  *                       fullname:
  *                         type: string
- *                         description: Tên đầy đủ của người dùng
- *                         example: "Nguyen Van A"
+ *                         example: "Nguyễn Văn A"
  *                       email:
  *                         type: string
- *                         description: Email của người dùng
- *                         example: "nguyenvana@example.com"
- *       403:
- *         description: Bị cấm / Không có quyền truy cập.
+ *                         example: "vana@example.com"
+ *       401:
+ *         description: Unauthorized
  *       500:
- *         description: Lỗi máy chủ nội bộ.
+ *         description: Internal Server Error
  */
+
 export const getUsersForDropdown = async (req: Request, res: Response) => {
   try {
     const users = await User.find({ isdeleted: false, isdisable: false })
@@ -308,42 +304,6 @@ export const getUsersForDropdown = async (req: Request, res: Response) => {
  *       403:
  *         description: Unauthorized
  */
-
-/**
- * @swagger
- * /api/attendance/users:
- *   get:
- *     summary: Get list of active users for dropdown (Admin only)
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of active users retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       fullname:
- *                         type: string
- *                       email:
- *                         type: string
- *       403:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-
 export const uploadEmployeeFace = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
@@ -354,7 +314,7 @@ export const uploadEmployeeFace = async (req: Request, res: Response) => {
     if (!user || user.isdeleted || user.isdisable) {
       return CreateErrorResponse(res, 400, AUTH_ERRORS.USER_NOT_FOUND);
     }
-    const imageUrl = await AuthService.UploadEmployeeFace(
+    const imageUrl = await AttendanceService.UploadEmployeeFace(
       userId,
       req.file.buffer
     );

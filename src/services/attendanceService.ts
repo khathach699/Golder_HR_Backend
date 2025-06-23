@@ -1,10 +1,11 @@
-import { Document } from 'mongoose';
-import AttendanceModel from '../models/attendance';
-import User from '../models/user';
-import { uploadToCloudinary } from '../utils/cloudinary';
-import { verifyFace } from '../utils/faceVerification';
-import { AUTH_ERRORS } from '../utils/constants';
-import { AttendanceDocument } from '../types/attendance';
+import { Document } from "mongoose";
+import AttendanceModel from "../models/attendance";
+import User from "../models/user";
+import { v2 as cloudinary } from "cloudinary";
+import { uploadToCloudinary } from "../utils/cloudinary";
+import { verifyFace } from "../utils/faceVerification";
+import { AUTH_ERRORS } from "../utils/constants";
+import { AttendanceDocument } from "../types/attendance";
 
 interface Location {
   coordinates: [number, number]; // [kinh độ, vĩ độ]
@@ -21,39 +22,35 @@ export const CheckIn = async (
     throw new Error(AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
   }
 
-  // Tải ảnh lên Cloudinary
-  const imageUrl = await uploadToCloudinary(image, 'attendance_images');
-
-  // Xác thực khuôn mặt
-  const isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl as string);
+  const imageUrl = await uploadToCloudinary(image, "attendance_images");
+  const isFaceMatch = await verifyFace(
+    imageUrl,
+    user.referenceImageUrl as string
+  );
   if (!isFaceMatch) {
-    throw new Error('Xác thực khuôn mặt thất bại');
+    throw new Error("Xác thực khuôn mặt thất bại");
   }
 
-  // Lấy ngày hiện tại (YYYY-MM-DD)
-  const workDate = new Date().toISOString().split('T')[0];
-
-  // Tìm hoặc tạo bản ghi chấm công
-  let attendance = await AttendanceModel.findOne({ employeeId: userId, workDate });
+  const workDate = new Date().toISOString().split("T")[0];
+  let attendance = await AttendanceModel.findOne({
+    employeeId: userId,
+    workDate,
+  });
   if (!attendance) {
     attendance = new AttendanceModel({
       employeeId: userId,
       workDate,
-      status: 'PRESENT',
+      status: "PRESENT",
     });
   } else if (attendance.checkIn) {
-    throw new Error('Đã chấm công vào hôm nay');
+    throw new Error("Đã chấm công vào hôm nay");
   }
 
-  // Cập nhật thông tin chấm công vào
   attendance.checkIn = {
     time: new Date(),
     imageUrl,
     location: {
-      coordinates: {
-        type: 'Point',
-        coordinates: location.coordinates,
-      },
+      coordinates: { type: "Point", coordinates: location.coordinates },
       address: location.address,
     },
   };
@@ -72,34 +69,31 @@ export const CheckOut = async (
     throw new Error(AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
   }
 
-  // Tải ảnh lên Cloudinary
-  const imageUrl = await uploadToCloudinary(image, 'attendance_images');
-
-  // Xác thực khuôn mặt
-  const isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl as string);
+  const imageUrl = await uploadToCloudinary(image, "attendance_images");
+  const isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl);
   if (!isFaceMatch) {
-    throw new Error('Xác thực khuôn mặt thất bại');
+    throw new Error("Xác thực khuôn mặt thất bại");
   }
 
-  // Lấy ngày hiện tại (YYYY-MM-DD)
-  const workDate = new Date().toISOString().split('T')[0];
+  const workDate = new Date().toISOString().split("T")[0];
 
-  // Tìm bản ghi chấm công
-  const attendance = await AttendanceModel.findOne({ employeeId: userId, workDate });
+  const attendance = await AttendanceModel.findOne({
+    employeeId: userId,
+    workDate,
+  });
   if (!attendance || !attendance.checkIn) {
-    throw new Error('Chưa chấm công vào hôm nay');
+    throw new Error("Chưa chấm công vào hôm nay");
   }
   if (attendance.checkOut) {
-    throw new Error('Đã chấm công ra hôm nay');
+    throw new Error("Đã chấm công ra hôm nay");
   }
 
-  // Cập nhật thông tin chấm công ra
   attendance.checkOut = {
     time: new Date(),
     imageUrl,
     location: {
       coordinates: {
-        type: 'Point',
+        type: "Point",
         coordinates: location.coordinates,
       },
       address: location.address,
@@ -108,4 +102,40 @@ export const CheckOut = async (
 
   await attendance.save();
   return attendance as AttendanceDocument;
+};
+
+export const UploadEmployeeFace = async (
+  userId: string,
+  file: Buffer
+): Promise<string> => {
+  const user = await User.findById(userId);
+  if (!user || user.isdeleted || user.isdisable) {
+    throw new Error(AUTH_ERRORS.USER_NOT_FOUND);
+  }
+
+  // Lấy public_id của ảnh cũ nếu có
+  let oldPublicId: string | null = null;
+  if (user.referenceImageUrl) {
+    const urlParts = user.referenceImageUrl.split("/");
+    const fileName = urlParts[urlParts.length - 1];
+    oldPublicId = `employee_faces/${fileName.split(".")[0]}`;
+  }
+
+  // Tải ảnh mới lên Cloudinary
+  const imageUrl = await uploadToCloudinary(file, "employee_faces");
+
+  // Xóa ảnh cũ nếu có
+  if (oldPublicId) {
+    try {
+      await cloudinary.uploader.destroy(oldPublicId);
+      console.log(`Đã xóa ảnh cũ: ${oldPublicId}`);
+    } catch (error) {
+      console.warn(`Không thể xóa ảnh cũ ${oldPublicId}:`, error);
+    }
+  }
+
+  // Cập nhật URL ảnh mới
+  user.referenceImageUrl = imageUrl;
+  await user.save();
+  return imageUrl;
 };

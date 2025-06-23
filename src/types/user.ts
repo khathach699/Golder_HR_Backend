@@ -1,5 +1,5 @@
 // File: src/types/user.ts
-import { Document } from 'mongoose';
+import { Document } from "mongoose";
 
 export interface IUser {
   fullname: string;

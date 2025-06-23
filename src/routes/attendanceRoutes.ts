@@ -23,7 +23,7 @@ router.post(
 );
 
 router.get(
-  "/dropdown",
+  "/users-dropdown",
   check_authentication,
   check_authorization(["admin"]),
   attendanceController.getUsersForDropdown

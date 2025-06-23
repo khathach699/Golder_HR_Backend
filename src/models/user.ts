@@ -12,12 +12,15 @@ const userSchema = new Schema<IUserDocument>(
     point: { type: Number, default: 0 },
     isdisable: { type: Boolean, default: false },
     role: { type: Schema.Types.ObjectId, ref: "Role", required: true },
-    organization: { type: Schema.Types.ObjectId, ref: "Organization", default: null },
-    referenceImageUrl: {type: String, default: null},
+    organization: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null,
+    },
+    referenceImageUrl: { type: String, default: null },
     otpCode: { type: String },
     otpExpires: { type: Number },
     isdeleted: { type: Boolean, default: false },
-
   },
   { timestamps: true }
 );
