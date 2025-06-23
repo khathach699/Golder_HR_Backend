@@ -1,8 +1,15 @@
 import { Router } from "express";
-import { validate, SignupValidator, LoginValidator } from "../validators/validate";
+import {
+  validate,
+  SignupValidator,
+  LoginValidator,
+} from "../validators/validate";
 import * as AuthController from "../controllers/authController";
-import { check_authentication, check_authorization } from "../middlewares/authMiddleware";
-import multer from 'multer';
+import {
+  check_authentication,
+  check_authorization,
+} from "../middlewares/authMiddleware";
+import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
@@ -23,21 +30,6 @@ router.post("/forgot-password", AuthController.forgotPassword);
 router.post("/reset-password", AuthController.resetPassword);
 
 // Route lấy danh sách người dùng (chỉ admin)
-router.get(
-  "/users",
-  check_authentication,
-  check_authorization(['admin']),
-  AuthController.getUsersForDropdown
-);
-
-// Route upload ảnh khuôn mặt (chỉ admin)
-router.post(
-  "/upload-face/:userId",
-  check_authentication,
-  check_authorization(['admin']),
-  upload.single('image'),
-  AuthController.uploadEmployeeFace
-);
 
 // Route thay đổi mật khẩu
 router.post(

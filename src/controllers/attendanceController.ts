@@ -5,8 +5,11 @@ import {
   CreateErrorResponse,
 } from "../utils/responseHandler";
 import multer from "multer";
+import User from "../models/user";
+import { AUTH_ERRORS } from "../utils/constants";
 
 const upload = multer({ storage: multer.memoryStorage() });
+import * as AuthService from "../services/authService";
 
 /**
  * @swagger
@@ -196,5 +199,170 @@ export const checkOut = async (req: Request, res: Response) => {
       500,
       error.message || "An internal server error occurred"
     );
+  }
+};
+/**
+ * @swagger
+ * /api/attendance/dropdown:
+ *   get:
+ *     summary: Lấy danh sách người dùng đang hoạt động cho dropdown
+ *     description: API này trả về danh sách rút gọn các người dùng (chỉ bao gồm id, fullname, email) đang hoạt động trong hệ thống. Thường được sử dụng để điền vào các trường lựa chọn (dropdown/select). Yêu cầu quyền admin.
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Trả về thành công danh sách người dùng.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         description: ID của người dùng
+ *                         example: "65a4e5f3c2b8a7b9e3e4f1c1"
+ *                       fullname:
+ *                         type: string
+ *                         description: Tên đầy đủ của người dùng
+ *                         example: "Nguyen Van A"
+ *                       email:
+ *                         type: string
+ *                         description: Email của người dùng
+ *                         example: "nguyenvana@example.com"
+ *       403:
+ *         description: Bị cấm / Không có quyền truy cập.
+ *       500:
+ *         description: Lỗi máy chủ nội bộ.
+ */
+export const getUsersForDropdown = async (req: Request, res: Response) => {
+  try {
+    const users = await User.find({ isdeleted: false, isdisable: false })
+      .select("fullname email")
+      .lean();
+    return CreateSuccessResponse(
+      res,
+      200,
+      users.map((user) => ({
+        id: user._id.toString(),
+        fullname: user.fullname,
+        email: user.email,
+      }))
+    );
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/attendance/upload-face/{userId}:
+ *   post:
+ *     summary: Upload employee's face image (Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the employee selected from the dropdown
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Face image file
+ *     responses:
+ *       200:
+ *         description: Face image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imageUrl:
+ *                       type: string
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/attendance/users:
+ *   get:
+ *     summary: Get list of active users for dropdown (Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       fullname:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
+export const uploadEmployeeFace = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    if (!req.file) {
+      return CreateErrorResponse(res, 400, "No image file provided");
+    }
+    const user = await User.findById(userId);
+    if (!user || user.isdeleted || user.isdisable) {
+      return CreateErrorResponse(res, 400, AUTH_ERRORS.USER_NOT_FOUND);
+    }
+    const imageUrl = await AuthService.UploadEmployeeFace(
+      userId,
+      req.file.buffer
+    );
+    return CreateSuccessResponse(res, 200, {
+      imageUrl,
+      user: { id: user._id, fullname: user.fullname, email: user.email },
+    });
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
   }
 };

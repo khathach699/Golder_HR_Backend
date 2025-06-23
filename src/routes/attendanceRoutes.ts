@@ -1,6 +1,9 @@
 import * as attendanceController from "../controllers/attendanceController";
 import { Router } from "express";
-import { check_authentication } from "../middlewares/authMiddleware";
+import {
+  check_authentication,
+  check_authorization,
+} from "../middlewares/authMiddleware";
 import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -17,5 +20,21 @@ router.post(
   upload.single("image"),
   check_authentication,
   attendanceController.checkOut
+);
+
+router.get(
+  "/dropdown",
+  check_authentication,
+  check_authorization(["admin"]),
+  attendanceController.getUsersForDropdown
+);
+
+// Route upload ảnh khuôn mặt (chỉ admin)
+router.post(
+  "/upload-face/:userId",
+  check_authentication,
+  check_authorization(["admin"]),
+  upload.single("image"),
+  attendanceController.uploadEmployeeFace
 );
 export default router;
