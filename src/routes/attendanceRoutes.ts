@@ -37,4 +37,10 @@ router.post(
   upload.single("image"),
   attendanceController.uploadEmployeeFace
 );
+
+router.get(
+  "/check-status",
+  check_authentication,
+  attendanceController.checkAttendanceStatus
+);
 export default router;

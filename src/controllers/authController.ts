@@ -118,12 +118,12 @@ export const register = async (req: Request, res: Response) => {
  *                 type: string
  *                 format: email
  *                 description: User's email address
- *                 example: user1@gmail.com
+ *                 example: admin@gmail.com
  *               password:
  *                 type: string
  *                 format: password
  *                 description: User's password
- *                 example: User12345@
+ *                 example: Admin123@
  *     responses:
  *       200:
  *         description: User logged in successfully

@@ -7,6 +7,7 @@ import {
 import multer from "multer";
 import User from "../models/user";
 import { AUTH_ERRORS } from "../utils/constants";
+import AttendanceModel from "../models/attendance";
 
 const upload = multer({ storage: multer.memoryStorage() });
 import * as AttendanceService from "../services/attendanceService";
@@ -324,5 +325,76 @@ export const uploadEmployeeFace = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/attendance/check-status:
+ *   get:
+ *     summary: Check if user has checked in/out today
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Check status successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     hasCheckedIn:
+ *                       type: boolean
+ *                     hasCheckedOut:
+ *                       type: boolean
+ *                     checkInTime:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                     checkOutTime:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+export const checkAttendanceStatus = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const workDate = new Date().toISOString().split("T")[0];
+    const attendance = await AttendanceModel.findOne({
+      employeeId: userId,
+      workDate,
+    });
+
+    const hasCheckedIn = !!attendance?.checkIn;
+    const hasCheckedOut = !!attendance?.checkOut;
+    const checkInTime = attendance?.checkIn?.time || null;
+    const checkOutTime = attendance?.checkOut?.time || null;
+
+    return CreateSuccessResponse(res, 200, {
+      hasCheckedIn,
+      hasCheckedOut,
+      checkInTime,
+      checkOutTime,
+    });
+  } catch (error: any) {
+    return CreateErrorResponse(
+      res,
+      500,
+      error.message || "An internal server error occurred"
+    );
   }
 };
