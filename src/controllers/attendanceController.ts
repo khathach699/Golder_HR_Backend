@@ -398,3 +398,329 @@ export const checkAttendanceStatus = async (req: Request, res: Response) => {
     );
   }
 };
+
+// attendanceController.ts
+
+/**
+ * @swagger
+ * /api/attendance/today-summary:
+ *   get:
+ *     summary: Get a comprehensive summary of today's attendance for the logged-in user.
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's summary retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     isCheckedIn:
+ *                       type: boolean
+ *                     isCheckedOut:
+ *                       type: boolean
+ *                     checkInTime:
+ *                       type: string
+ *                       example: "08:55 AM"
+ *                     checkOutTime:
+ *                       type: string
+ *                       example: "--:-- --"
+ *                     totalHours:
+ *                       type: string
+ *                       example: "2h 37m"
+ *                     overtime:
+ *                       type: string
+ *                       example: "0h 0m"
+ */
+export const getTodaySummary = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const summary = await AttendanceService.updateAttendanceStatus(userId);
+    const isCheckedIn = summary.checkInTime !== null;
+
+    // isCheckedOut được xác định bởi checkOutTime có phải là giá trị mặc định hay không
+    const isCheckedOut = summary.checkOutTime !== "--:-- --";
+
+    const responseData = {
+      isCheckedIn,
+      isCheckedOut,
+      ...summary,
+    };
+
+    return CreateSuccessResponse(res, 200, responseData);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/attendance/summary/week:
+ *   get:
+ *     summary: Get weekly attendance summary for the current user
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Weekly summary retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workDays:
+ *                   type: string
+ *                   example: "4 / 5"
+ *                 totalHours:
+ *                   type: string
+ *                   example: "32h 15m"
+ *                 overtime:
+ *                   type: string
+ *                   example: "2h 30m"
+ *                 lateArrivals:
+ *                   type: number
+ *                   example: 1
+ *                 performance:
+ *                   type: number
+ *                   example: 0.8
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+export const getWeekSummary = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+    const summary = await AttendanceService.getWeekSummary(userId);
+    return CreateSuccessResponse(res, 200, summary);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/attendance/summary/month:
+ *   get:
+ *     summary: Get monthly attendance summary for the current user
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Monthly summary retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workDays:
+ *                   type: string
+ *                   example: "18 / 22"
+ *                 totalHours:
+ *                   type: string
+ *                   example: "144h 45m"
+ *                 overtime:
+ *                   type: string
+ *                   example: "8h 15m"
+ *                 daysOff:
+ *                   type: number
+ *                   example: 2
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+export const getMonthSummary = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+    const summary = await AttendanceService.getMonthSummary(userId);
+    return CreateSuccessResponse(res, 200, summary);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/attendance/history:
+ *   get:
+ *     summary: Get paginated attendance history for the current user
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number to retrieve.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: The number of records to retrieve per page.
+ *     responses:
+ *       200:
+ *         description: A list of attendance records with pagination info.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 history:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "60d0fe4f5311236168a109ca"
+ *                       date:
+ *                         type: string
+ *                         example: "June 24"
+ *                       checkIn:
+ *                         type: string
+ *                         example: "09:00 AM"
+ *                       checkOut:
+ *                         type: string
+ *                         example: "05:00 PM"
+ *                       totalHours:
+ *                         type: string
+ *                         example: "8h 0m"
+ *                 currentPage:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 5
+ *                 totalRecords:
+ *                   type: integer
+ *                   example: 48
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+export const getHistory = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+
+    // Lấy page và limit từ query params, chuyển về dạng số và đặt giá trị mặc định
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const data = await AttendanceService.getAttendanceHistory(
+      userId,
+      page,
+      limit
+    );
+
+    return CreateSuccessResponse(res, 200, data);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/attendance/monthly-details:
+ *   get:
+ *     summary: Get full attendance details and summary for a specific month
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         required: true
+ *         schema: { type: integer, example: 2025 }
+ *         description: The year to retrieve data for.
+ *       - in: query
+ *         name: month
+ *         required: true
+ *         schema: { type: integer, example: 6 }
+ *         description: The month to retrieve data for (1-12).
+ *     responses:
+ *       200:
+ *         description: Monthly details and summary retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 dailyDetails:
+ *                   type: array
+ *                   items:
+ *                      type: object
+ *                      properties:
+ *                          date:
+ *                            type: string
+ *                            format: date-time
+ *                          status:
+ *                            type: string
+ *                            enum: [On Time, Late, Absent, Weekend, On Leave, Holiday]
+ *                          checkIn:
+ *                            type: string
+ *                          checkOut:
+ *                            type: string
+ *                          totalHours:
+ *                            type: string
+ *                          overtime:
+ *                            type: string
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                       workDays: { type: number }
+ *                       lateArrivals: { type: number }
+ *                       absences: { type: number }
+ *                       holidays: { type: number }
+ */
+export const getMonthlyDetails = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const year = parseInt(req.query.year as string);
+    const month = parseInt(req.query.month as string);
+
+    if (!year || !month || month < 1 || month > 12) {
+      return CreateErrorResponse(
+        res,
+        400,
+        "Valid 'year' and 'month' (1-12) are required."
+      );
+    }
+
+    const data = await AttendanceService.getMonthlyDetails(userId, year, month);
+
+    return CreateSuccessResponse(res, 200, data);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};

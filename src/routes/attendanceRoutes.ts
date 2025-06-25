@@ -1,3 +1,4 @@
+import { getMonthSummary } from "./../services/attendanceService";
 import * as attendanceController from "../controllers/attendanceController";
 import { Router } from "express";
 import {
@@ -43,4 +44,28 @@ router.get(
   check_authentication,
   attendanceController.checkAttendanceStatus
 );
+
+router.get(
+  "/today-summary",
+  check_authentication,
+  attendanceController.getTodaySummary
+);
+router.get(
+  "/summary/week",
+  check_authentication,
+  attendanceController.getWeekSummary
+);
+
+router.get(
+  "/summary/month",
+  check_authentication,
+  attendanceController.getMonthSummary
+);
+
+router.get(
+  "/monthly-details",
+  check_authentication,
+  attendanceController.getMonthlyDetails
+);
+router.get("/history", check_authentication, attendanceController.getHistory);
 export default router;

@@ -1,4 +1,4 @@
-import { Document, Types } from 'mongoose';
+import { Document, Types } from "mongoose";
 
 export interface Location {
   coordinates: { type: string; coordinates: [number, number] };
@@ -16,7 +16,9 @@ export interface AttendanceDocument extends Document {
   workDate: string;
   checkIn?: AttendanceEntry;
   checkOut?: AttendanceEntry;
-  status: 'PRESENT' | 'ON_LEAVE';
+  status: "PRESENT" | "ON_LEAVE";
   createdAt: Date;
   updatedAt: Date;
+  totalHours?: string;
+  overtime?: string;
 }

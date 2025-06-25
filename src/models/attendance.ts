@@ -32,6 +32,8 @@ const attendanceSchema = new Schema<AttendanceDocument>(
       enum: ["PRESENT", "ON_LEAVE"],
       default: "PRESENT",
     },
+    totalHours: { type: String, default: "--" },
+    overtime: { type: String, default: "--" },
   },
   { timestamps: true }
 );
