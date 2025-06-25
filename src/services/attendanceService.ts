@@ -6,7 +6,11 @@ import { v2 as cloudinary } from "cloudinary";
 import { uploadToCloudinary } from "../utils/cloudinary";
 import { verifyFace } from "../utils/faceVerification";
 import { AUTH_ERRORS } from "../utils/constants";
-import { AttendanceDocument, Location } from "../types/attendance";
+import {
+  AttendanceDocument,
+  InputLocationData,
+  DBLocationData,
+} from "../types/attendance";
 
 // ... (other functions are fine) ...
 
@@ -40,108 +44,303 @@ export const calculateOvertime = (
   const minutes = Math.floor((overtimeHours - hours) * 60);
   return `${hours}h ${minutes}m`;
 };
-
-// Hàm xử lý check-in
 export const CheckIn = async (
   userId: string,
   image: Buffer,
-  location: Location
+  locationInput: InputLocationData // locationInput là dữ liệu từ controller: { coordinates: [lng, lat], address: "..."}
 ): Promise<AttendanceDocument> => {
+  console.log(`[SERVICE CheckIn] Started for userId: ${userId}`);
+  console.log(
+    `[SERVICE CheckIn] Received locationInput:`,
+    JSON.stringify(locationInput, null, 2)
+  );
+
   const user = await User.findById(userId);
   if (!user || !user.referenceImageUrl) {
+    console.error(
+      `[SERVICE CheckIn] User not found or no reference image for userId: ${userId}`
+    );
     throw new Error(AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
   }
-
-  const imageUrl = await uploadToCloudinary(image, "attendance_images");
-  const isFaceMatch = await verifyFace(
-    imageUrl,
-    user.referenceImageUrl as string
+  console.log(
+    `[SERVICE CheckIn] User found: ${
+      user.fullname
+    }, Ref Img URL exists: ${!!user.referenceImageUrl}`
   );
+
+  console.log(`[SERVICE CheckIn] Uploading image to Cloudinary...`);
+  const imageUrl = await uploadToCloudinary(image, "attendance_images");
+  console.log(`[SERVICE CheckIn] Image uploaded, URL: ${imageUrl}`);
+
+  let isFaceMatch = false;
+  try {
+    console.log(
+      `[SERVICE CheckIn] Verifying face against reference: ${user.referenceImageUrl}`
+    );
+    isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl as string);
+    console.log(`[SERVICE CheckIn] Face verification result: ${isFaceMatch}`);
+  } catch (verificationError: any) {
+    console.error(
+      `[SERVICE CheckIn] Error during face verification call:`,
+      verificationError.message
+    );
+    if (verificationError.response && verificationError.response.data) {
+      console.error(
+        "[SERVICE CheckIn] Error response data from face verification service:",
+        verificationError.response.data
+      );
+    }
+    throw new Error(
+      `Lỗi khi gọi dịch vụ xác thực khuôn mặt: ${verificationError.message}`
+    );
+  }
+
   if (!isFaceMatch) {
+    console.error(`[SERVICE CheckIn] Face verification failed.`);
     throw new Error("Xác thực khuôn mặt thất bại");
   }
 
   const workDate = new Date().toISOString().split("T")[0];
+  console.log(`[SERVICE CheckIn] Work date: ${workDate}`);
   let attendance = await AttendanceModel.findOne({
     employeeId: userId,
     workDate,
   });
 
   if (!attendance) {
+    console.log(
+      `[SERVICE CheckIn] No existing attendance record for today. Creating new one.`
+    );
     attendance = new AttendanceModel({
       employeeId: userId,
       workDate,
       status: "PRESENT",
     });
   } else if (attendance.checkIn) {
+    console.error(
+      `[SERVICE CheckIn] User already checked in today. Current checkIn time:`,
+      attendance.checkIn.time
+    );
     throw new Error("Đã chấm công vào hôm nay");
+  } else {
+    console.log(
+      `[SERVICE CheckIn] Found existing attendance record for today without check-in. Updating it.`
+    );
   }
 
   const checkInTime = new Date();
+  console.log(`[SERVICE CheckIn] Check-in time: ${checkInTime.toISOString()}`);
+
+  const locationForDb: DBLocationData = {
+    address: locationInput.address,
+    coordinates: {
+      type: "Point" as const,
+      coordinates: locationInput.coordinates,
+    },
+  };
+  console.log(
+    `[SERVICE CheckIn] Prepared locationForDb (to be saved):`,
+    JSON.stringify(locationForDb, null, 2)
+  );
+
   attendance.checkIn = {
     time: checkInTime,
     imageUrl,
-    // FIX: The `location` parameter already has the correct structure.
-    // Assign it directly to fix the error.
-    location: location,
+    location: locationForDb, // QUAN TRỌNG: Gán 'locationForDb' đã định dạng đúng vào đây
   };
+  // ----- KẾT THÚC PHẦN SỬA -----
 
-  attendance.totalHours = calculateTotalHours(checkInTime, undefined);
-  attendance.overtime = calculateOvertime(checkInTime, undefined);
+  attendance.totalHours = calculateTotalHours(checkInTime, undefined); // Sẽ là "--"
+  attendance.overtime = calculateOvertime(checkInTime, undefined); // Sẽ là "--"
+  console.log(
+    `[SERVICE CheckIn] Tentative totalHours: ${attendance.totalHours}, overtime: ${attendance.overtime}`
+  );
 
-  await attendance.save();
+  console.log("[SERVICE CheckIn] Attempting to save attendance record...");
+  console.log(
+    "[SERVICE CheckIn] Full attendance object before save:",
+    JSON.stringify(attendance.toObject(), null, 2)
+  );
+
+  try {
+    await attendance.save();
+    console.log(
+      "[SERVICE CheckIn] Attendance record saved successfully. ID:",
+      attendance._id
+    );
+  } catch (dbError: any) {
+    console.error("[SERVICE CheckIn] !!! DB SAVE ERROR !!!:", dbError.message);
+    if (dbError.errors) {
+      console.error(
+        "[SERVICE CheckIn] Mongoose Validation Errors:",
+        JSON.stringify(dbError.errors, null, 2)
+      );
+    } else {
+      console.error("[SERVICE CheckIn] DB Error Stack:", dbError.stack);
+    }
+    throw dbError; // Ném lại lỗi để controller bắt
+  }
+
   return attendance as AttendanceDocument;
 };
 
-// Hàm xử lý check-out
+// Hàm xử lý check-out (ĐÃ SỬA)
 export const CheckOut = async (
   userId: string,
   image: Buffer,
-  location: Location
+  locationInput: InputLocationData // locationInput là dữ liệu từ controller: { coordinates: [lng, lat], address: "..."}
 ): Promise<AttendanceDocument> => {
+  console.log(`[SERVICE CheckOut] Started for userId: ${userId}`);
+  console.log(
+    `[SERVICE CheckOut] Received locationInput:`,
+    JSON.stringify(locationInput, null, 2)
+  );
+
   const user = await User.findById(userId);
   if (!user || !user.referenceImageUrl) {
+    console.error(
+      `[SERVICE CheckOut] User not found or no reference image for userId: ${userId}`
+    );
     throw new Error(AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
   }
+  console.log(
+    `[SERVICE CheckOut] User found: ${
+      user.fullname
+    }, Ref Img URL exists: ${!!user.referenceImageUrl}`
+  );
 
+  console.log(`[SERVICE CheckOut] Uploading image to Cloudinary...`);
   const imageUrl = await uploadToCloudinary(image, "attendance_images");
-  const isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl);
+  console.log(`[SERVICE CheckOut] Image uploaded, URL: ${imageUrl}`);
+
+  let isFaceMatch = false;
+  try {
+    console.log(
+      `[SERVICE CheckOut] Verifying face against reference: ${user.referenceImageUrl}`
+    );
+    isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl as string);
+    console.log(`[SERVICE CheckOut] Face verification result: ${isFaceMatch}`);
+  } catch (verificationError: any) {
+    console.error(
+      `[SERVICE CheckOut] Error during face verification call:`,
+      verificationError.message
+    );
+    if (verificationError.response && verificationError.response.data) {
+      console.error(
+        "[SERVICE CheckOut] Error response data from face verification service:",
+        verificationError.response.data
+      );
+    }
+    throw new Error(
+      `Lỗi khi gọi dịch vụ xác thực khuôn mặt: ${verificationError.message}`
+    );
+  }
+
   if (!isFaceMatch) {
+    console.error(`[SERVICE CheckOut] Face verification failed.`);
     throw new Error("Xác thực khuôn mặt thất bại");
   }
 
   const workDate = new Date().toISOString().split("T")[0];
+  console.log(`[SERVICE CheckOut] Work date: ${workDate}`);
   const attendance = await AttendanceModel.findOne({
     employeeId: userId,
     workDate,
   });
 
   if (!attendance || !attendance.checkIn) {
+    console.error(
+      `[SERVICE CheckOut] No check-in found for today or attendance record does not exist.`
+    );
     throw new Error("Chưa chấm công vào hôm nay");
   }
   if (attendance.checkOut) {
+    console.error(
+      `[SERVICE CheckOut] User already checked out today. Current checkOut time:`,
+      attendance.checkOut.time
+    );
     throw new Error("Đã chấm công ra hôm nay");
   }
+  console.log(
+    `[SERVICE CheckOut] Found existing attendance record for today with check-in. Updating with check-out.`
+  );
 
   const checkOutTime = new Date();
+  console.log(
+    `[SERVICE CheckOut] Check-out time: ${checkOutTime.toISOString()}`
+  );
+
+  // ----- BẮT ĐẦU PHẦN SỬA -----
+  // Tạo đối tượng location phù hợp với Mongoose Schema (GeoJSON Point structure)
+  const locationForDb: DBLocationData = {
+    address: locationInput.address, // Lấy địa chỉ từ đầu vào
+    coordinates: {
+      // Tạo object 'coordinates'
+      type: "Point" as const, // Theo schema, trường 'type' có giá trị 'Point'
+      coordinates: locationInput.coordinates, // Lấy mảng [kinh_do, vi_do] từ đầu vào
+      // và đặt nó vào trường 'coordinates' bên trong này
+    },
+  };
+  console.log(
+    `[SERVICE CheckOut] Prepared locationForDb (to be saved):`,
+    JSON.stringify(locationForDb, null, 2)
+  );
+
   attendance.checkOut = {
     time: checkOutTime,
     imageUrl,
-    // FIX: The `location` parameter already has the correct structure.
-    // Assign it directly to fix the error.
-    location: location,
+    location: locationForDb, // QUAN TRỌNG: Gán 'locationForDb' đã định dạng đúng vào đây
   };
+  // ----- KẾT THÚC PHẦN SỬA -----
 
-  attendance.totalHours = calculateTotalHours(
-    attendance.checkIn.time,
-    checkOutTime
-  );
-  attendance.overtime = calculateOvertime(
-    attendance.checkIn.time,
-    checkOutTime
+  // Tính lại totalHours và overtime
+  if (attendance.checkIn?.time) {
+    // Cần kiểm tra checkIn.time tồn tại
+    attendance.totalHours = calculateTotalHours(
+      attendance.checkIn.time,
+      checkOutTime
+    );
+    attendance.overtime = calculateOvertime(
+      attendance.checkIn.time,
+      checkOutTime
+    );
+  } else {
+    // Trường hợp này không nên xảy ra nếu logic ở trên đúng
+    attendance.totalHours = "--";
+    attendance.overtime = "--";
+    console.warn(
+      "[SERVICE CheckOut] Warning: checkIn.time was undefined when calculating total/overtime for checkout."
+    );
+  }
+  console.log(
+    `[SERVICE CheckOut] Calculated totalHours: ${attendance.totalHours}, overtime: ${attendance.overtime}`
   );
 
-  await attendance.save();
+  console.log("[SERVICE CheckOut] Attempting to save attendance record...");
+  console.log(
+    "[SERVICE CheckOut] Full attendance object before save:",
+    JSON.stringify(attendance.toObject(), null, 2)
+  );
+
+  try {
+    await attendance.save();
+    console.log(
+      "[SERVICE CheckOut] Attendance record saved successfully. ID:",
+      attendance._id
+    );
+  } catch (dbError: any) {
+    console.error("[SERVICE CheckOut] !!! DB SAVE ERROR !!!:", dbError.message);
+    if (dbError.errors) {
+      console.error(
+        "[SERVICE CheckOut] Mongoose Validation Errors:",
+        JSON.stringify(dbError.errors, null, 2)
+      );
+    } else {
+      console.error("[SERVICE CheckOut] DB Error Stack:", dbError.stack);
+    }
+    throw dbError;
+  }
+
   return attendance as AttendanceDocument;
 };
 
