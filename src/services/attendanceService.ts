@@ -1,5 +1,4 @@
 // services/attendanceService.ts
-import { Document } from "mongoose";
 import AttendanceModel from "../models/attendance";
 import User from "../models/user";
 import { v2 as cloudinary } from "cloudinary";
@@ -11,8 +10,8 @@ import {
   InputLocationData,
   DBLocationData,
 } from "../types/attendance";
-
-// ... (other functions are fine) ...
+// TODO: Tạm thời comment để tập trung vào chấm công nhiều lần
+// import { getDepartmentSalaryInfo } from "./departmentSalaryService";
 
 // Hàm tính tổng số giờ làm việc
 export const calculateTotalHours = (
@@ -44,92 +43,58 @@ export const calculateOvertime = (
   const minutes = Math.floor((overtimeHours - hours) * 60);
   return `${hours}h ${minutes}m`;
 };
+
+// Hàm xử lý check-in
 export const CheckIn = async (
   userId: string,
   image: Buffer,
-  locationInput: InputLocationData // locationInput là dữ liệu từ controller: { coordinates: [lng, lat], address: "..."}
+  locationInput: InputLocationData,
+  _departmentId?: string // TODO: Tạm thời không sử dụng
 ): Promise<AttendanceDocument> => {
-  console.log(`[SERVICE CheckIn] Started for userId: ${userId}`);
-  console.log(
-    `[SERVICE CheckIn] Received locationInput:`,
-    JSON.stringify(locationInput, null, 2)
-  );
-
   const user = await User.findById(userId);
   if (!user || !user.referenceImageUrl) {
-    console.error(
-      `[SERVICE CheckIn] User not found or no reference image for userId: ${userId}`
-    );
     throw new Error(AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
   }
-  console.log(
-    `[SERVICE CheckIn] User found: ${
-      user.fullname
-    }, Ref Img URL exists: ${!!user.referenceImageUrl}`
-  );
 
-  console.log(`[SERVICE CheckIn] Uploading image to Cloudinary...`);
   const imageUrl = await uploadToCloudinary(image, "attendance_images");
-  console.log(`[SERVICE CheckIn] Image uploaded, URL: ${imageUrl}`);
 
   let isFaceMatch = false;
   try {
-    console.log(
-      `[SERVICE CheckIn] Verifying face against reference: ${user.referenceImageUrl}`
-    );
     isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl as string);
-    console.log(`[SERVICE CheckIn] Face verification result: ${isFaceMatch}`);
   } catch (verificationError: any) {
-    console.error(
-      `[SERVICE CheckIn] Error during face verification call:`,
-      verificationError.message
-    );
-    if (verificationError.response && verificationError.response.data) {
-      console.error(
-        "[SERVICE CheckIn] Error response data from face verification service:",
-        verificationError.response.data
-      );
-    }
     throw new Error(
       `Lỗi khi gọi dịch vụ xác thực khuôn mặt: ${verificationError.message}`
     );
   }
 
   if (!isFaceMatch) {
-    console.error(`[SERVICE CheckIn] Face verification failed.`);
     throw new Error("Xác thực khuôn mặt thất bại");
   }
 
   const workDate = new Date().toISOString().split("T")[0];
-  console.log(`[SERVICE CheckIn] Work date: ${workDate}`);
   let attendance = await AttendanceModel.findOne({
     employeeId: userId,
     workDate,
   });
 
   if (!attendance) {
-    console.log(
-      `[SERVICE CheckIn] No existing attendance record for today. Creating new one.`
-    );
     attendance = new AttendanceModel({
       employeeId: userId,
       workDate,
       status: "PRESENT",
+      checkIns: [],
+      checkOuts: [],
     });
-  } else if (attendance.checkIn) {
-    console.error(
-      `[SERVICE CheckIn] User already checked in today. Current checkIn time:`,
-      attendance.checkIn.time
-    );
-    throw new Error("Đã chấm công vào hôm nay");
-  } else {
-    console.log(
-      `[SERVICE CheckIn] Found existing attendance record for today without check-in. Updating it.`
-    );
   }
 
   const checkInTime = new Date();
-  console.log(`[SERVICE CheckIn] Check-in time: ${checkInTime.toISOString()}`);
+
+  // TODO: Tạm thời comment phần tính lương để tập trung vào chấm công nhiều lần
+  // // Lấy thông tin bộ phận và mức lương
+  // const departmentSalaryInfo = await getDepartmentSalaryInfo(
+  //   userId,
+  //   departmentId
+  // );
 
   const locationForDb: DBLocationData = {
     address: locationInput.address,
@@ -138,211 +103,373 @@ export const CheckIn = async (
       coordinates: locationInput.coordinates,
     },
   };
-  console.log(
-    `[SERVICE CheckIn] Prepared locationForDb (to be saved):`,
-    JSON.stringify(locationForDb, null, 2)
-  );
 
-  attendance.checkIn = {
+  const newCheckInEntry = {
     time: checkInTime,
     imageUrl,
-    location: locationForDb, // QUAN TRỌNG: Gán 'locationForDb' đã định dạng đúng vào đây
+    location: locationForDb,
+    // TODO: Tạm thời bỏ qua phần department và salary để tập trung vào chấm công
+    // departmentId: null,
+    // hourlyRate: 0,
   };
-  // ----- KẾT THÚC PHẦN SỬA -----
 
-  attendance.totalHours = calculateTotalHours(checkInTime, undefined); // Sẽ là "--"
-  attendance.overtime = calculateOvertime(checkInTime, undefined); // Sẽ là "--"
-  console.log(
-    `[SERVICE CheckIn] Tentative totalHours: ${attendance.totalHours}, overtime: ${attendance.overtime}`
-  );
-
-  console.log("[SERVICE CheckIn] Attempting to save attendance record...");
-  console.log(
-    "[SERVICE CheckIn] Full attendance object before save:",
-    JSON.stringify(attendance.toObject(), null, 2)
-  );
-
-  try {
-    await attendance.save();
-    console.log(
-      "[SERVICE CheckIn] Attendance record saved successfully. ID:",
-      attendance._id
-    );
-  } catch (dbError: any) {
-    console.error("[SERVICE CheckIn] !!! DB SAVE ERROR !!!:", dbError.message);
-    if (dbError.errors) {
-      console.error(
-        "[SERVICE CheckIn] Mongoose Validation Errors:",
-        JSON.stringify(dbError.errors, null, 2)
-      );
-    } else {
-      console.error("[SERVICE CheckIn] DB Error Stack:", dbError.stack);
-    }
-    throw dbError; // Ném lại lỗi để controller bắt
+  // Kiểm tra logic luân phiên: phải check-out trước khi check-in lần tiếp theo
+  if (!attendance.checkIns) {
+    attendance.checkIns = [];
   }
+  if (!attendance.checkOuts) {
+    attendance.checkOuts = [];
+  }
+
+  // Nếu đã có check-in nhưng chưa có check-out tương ứng → không cho check-in tiếp
+  if (attendance.checkIns.length > attendance.checkOuts.length) {
+    throw new Error("Bạn phải check-out trước khi check-in lần tiếp theo");
+  }
+
+  // Thêm vào mảng checkIns
+  attendance.checkIns.push(newCheckInEntry);
+
+  // Cập nhật checkIn (để backward compatibility) - lưu lần check-in đầu tiên
+  if (!attendance.checkIn) {
+    attendance.checkIn = newCheckInEntry;
+  }
+
+  // Tính toán dựa trên check-in đầu tiên và check-out cuối cùng (nếu có)
+  const firstCheckIn =
+    attendance.checkIns && attendance.checkIns.length > 0
+      ? attendance.checkIns[0].time
+      : checkInTime;
+
+  const lastCheckOut =
+    attendance.checkOuts && attendance.checkOuts.length > 0
+      ? attendance.checkOuts[attendance.checkOuts.length - 1].time
+      : attendance.checkOut?.time;
+
+  attendance.totalHours = calculateTotalHours(firstCheckIn, lastCheckOut);
+  attendance.overtime = calculateOvertime(firstCheckIn, lastCheckOut);
+
+  await attendance.save();
 
   return attendance as AttendanceDocument;
 };
 
-// Hàm xử lý check-out (ĐÃ SỬA)
+// Hàm xử lý check-out
 export const CheckOut = async (
   userId: string,
   image: Buffer,
-  locationInput: InputLocationData // locationInput là dữ liệu từ controller: { coordinates: [lng, lat], address: "..."}
+  locationInput: InputLocationData,
+  _departmentId?: string // TODO: Tạm thời không sử dụng
 ): Promise<AttendanceDocument> => {
-  console.log(`[SERVICE CheckOut] Started for userId: ${userId}`);
-  console.log(
-    `[SERVICE CheckOut] Received locationInput:`,
-    JSON.stringify(locationInput, null, 2)
-  );
-
   const user = await User.findById(userId);
   if (!user || !user.referenceImageUrl) {
-    console.error(
-      `[SERVICE CheckOut] User not found or no reference image for userId: ${userId}`
-    );
     throw new Error(AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
   }
-  console.log(
-    `[SERVICE CheckOut] User found: ${
-      user.fullname
-    }, Ref Img URL exists: ${!!user.referenceImageUrl}`
-  );
 
-  console.log(`[SERVICE CheckOut] Uploading image to Cloudinary...`);
   const imageUrl = await uploadToCloudinary(image, "attendance_images");
-  console.log(`[SERVICE CheckOut] Image uploaded, URL: ${imageUrl}`);
 
   let isFaceMatch = false;
   try {
-    console.log(
-      `[SERVICE CheckOut] Verifying face against reference: ${user.referenceImageUrl}`
-    );
     isFaceMatch = await verifyFace(imageUrl, user.referenceImageUrl as string);
-    console.log(`[SERVICE CheckOut] Face verification result: ${isFaceMatch}`);
   } catch (verificationError: any) {
-    console.error(
-      `[SERVICE CheckOut] Error during face verification call:`,
-      verificationError.message
-    );
-    if (verificationError.response && verificationError.response.data) {
-      console.error(
-        "[SERVICE CheckOut] Error response data from face verification service:",
-        verificationError.response.data
-      );
-    }
     throw new Error(
       `Lỗi khi gọi dịch vụ xác thực khuôn mặt: ${verificationError.message}`
     );
   }
 
   if (!isFaceMatch) {
-    console.error(`[SERVICE CheckOut] Face verification failed.`);
     throw new Error("Xác thực khuôn mặt thất bại");
   }
 
   const workDate = new Date().toISOString().split("T")[0];
-  console.log(`[SERVICE CheckOut] Work date: ${workDate}`);
   const attendance = await AttendanceModel.findOne({
     employeeId: userId,
     workDate,
   });
 
-  if (!attendance || !attendance.checkIn) {
-    console.error(
-      `[SERVICE CheckOut] No check-in found for today or attendance record does not exist.`
-    );
-    throw new Error("Chưa chấm công vào hôm nay");
+  if (!attendance) {
+    throw new Error("Chưa có bản ghi chấm công cho hôm nay");
   }
-  if (attendance.checkOut) {
-    console.error(
-      `[SERVICE CheckOut] User already checked out today. Current checkOut time:`,
-      attendance.checkOut.time
-    );
-    throw new Error("Đã chấm công ra hôm nay");
-  }
-  console.log(
-    `[SERVICE CheckOut] Found existing attendance record for today with check-in. Updating with check-out.`
-  );
+  // Cho phép check-out nhiều lần - không cần check attendance.checkIn và attendance.checkOut
 
   const checkOutTime = new Date();
-  console.log(
-    `[SERVICE CheckOut] Check-out time: ${checkOutTime.toISOString()}`
-  );
 
-  // ----- BẮT ĐẦU PHẦN SỬA -----
-  // Tạo đối tượng location phù hợp với Mongoose Schema (GeoJSON Point structure)
+  // TODO: Tạm thời comment phần tính lương để tập trung vào chấm công nhiều lần
+  // // Lấy thông tin bộ phận và mức lương
+  // const departmentSalaryInfo = await getDepartmentSalaryInfo(
+  //   userId,
+  //   departmentId
+  // );
+
   const locationForDb: DBLocationData = {
-    address: locationInput.address, // Lấy địa chỉ từ đầu vào
+    address: locationInput.address,
     coordinates: {
-      // Tạo object 'coordinates'
-      type: "Point" as const, // Theo schema, trường 'type' có giá trị 'Point'
-      coordinates: locationInput.coordinates, // Lấy mảng [kinh_do, vi_do] từ đầu vào
-      // và đặt nó vào trường 'coordinates' bên trong này
+      type: "Point" as const,
+      coordinates: locationInput.coordinates,
     },
   };
-  console.log(
-    `[SERVICE CheckOut] Prepared locationForDb (to be saved):`,
-    JSON.stringify(locationForDb, null, 2)
-  );
 
-  attendance.checkOut = {
+  const newCheckOutEntry = {
     time: checkOutTime,
     imageUrl,
-    location: locationForDb, // QUAN TRỌNG: Gán 'locationForDb' đã định dạng đúng vào đây
+    location: locationForDb,
+    // TODO: Tạm thời bỏ qua phần department và salary để tập trung vào chấm công
+    // departmentId: null,
+    // hourlyRate: 0,
   };
-  // ----- KẾT THÚC PHẦN SỬA -----
 
-  // Tính lại totalHours và overtime
-  if (attendance.checkIn?.time) {
-    // Cần kiểm tra checkIn.time tồn tại
-    attendance.totalHours = calculateTotalHours(
-      attendance.checkIn.time,
-      checkOutTime
-    );
-    attendance.overtime = calculateOvertime(
-      attendance.checkIn.time,
-      checkOutTime
-    );
-  } else {
-    // Trường hợp này không nên xảy ra nếu logic ở trên đúng
-    attendance.totalHours = "--";
-    attendance.overtime = "--";
-    console.warn(
-      "[SERVICE CheckOut] Warning: checkIn.time was undefined when calculating total/overtime for checkout."
+  // Kiểm tra logic luân phiên: phải có check-in trước khi check-out
+  if (!attendance.checkIns) {
+    attendance.checkIns = [];
+  }
+  if (!attendance.checkOuts) {
+    attendance.checkOuts = [];
+  }
+
+  // Nếu chưa có check-in hoặc số lần check-out đã bằng check-in → không cho check-out
+  if (attendance.checkIns.length === 0) {
+    throw new Error("Bạn phải check-in trước khi check-out");
+  }
+
+  if (attendance.checkOuts.length >= attendance.checkIns.length) {
+    throw new Error(
+      "Bạn đã check-out rồi, hãy check-in trước khi check-out lần tiếp theo"
     );
   }
-  console.log(
-    `[SERVICE CheckOut] Calculated totalHours: ${attendance.totalHours}, overtime: ${attendance.overtime}`
-  );
 
-  console.log("[SERVICE CheckOut] Attempting to save attendance record...");
-  console.log(
-    "[SERVICE CheckOut] Full attendance object before save:",
-    JSON.stringify(attendance.toObject(), null, 2)
-  );
+  // Thêm vào mảng checkOuts
+  attendance.checkOuts.push(newCheckOutEntry);
+
+  // Cập nhật checkOut (để backward compatibility) - lưu lần check-out mới nhất
+  attendance.checkOut = newCheckOutEntry;
+
+  // Tính toán dựa trên check-in đầu tiên và check-out mới nhất
+  const firstCheckIn =
+    attendance.checkIns && attendance.checkIns.length > 0
+      ? attendance.checkIns[0].time
+      : attendance.checkIn?.time;
+
+  const lastCheckOut = checkOutTime; // Check-out hiện tại là mới nhất
+
+  if (firstCheckIn) {
+    attendance.totalHours = calculateTotalHours(firstCheckIn, lastCheckOut);
+    attendance.overtime = calculateOvertime(firstCheckIn, lastCheckOut);
+  } else {
+    // Nếu chưa có check-in, chỉ cập nhật check-out
+    attendance.totalHours = "--";
+    attendance.overtime = "--";
+  }
 
   try {
     await attendance.save();
-    console.log(
-      "[SERVICE CheckOut] Attendance record saved successfully. ID:",
-      attendance._id
-    );
   } catch (dbError: any) {
-    console.error("[SERVICE CheckOut] !!! DB SAVE ERROR !!!:", dbError.message);
-    if (dbError.errors) {
-      console.error(
-        "[SERVICE CheckOut] Mongoose Validation Errors:",
-        JSON.stringify(dbError.errors, null, 2)
-      );
-    } else {
-      console.error("[SERVICE CheckOut] DB Error Stack:", dbError.stack);
-    }
     throw dbError;
   }
 
   return attendance as AttendanceDocument;
 };
+
+// Hàm tính lương dựa trên các khoảng thời gian làm việc ở các bộ phận khác nhau
+export const calculateDepartmentBasedSalary = (
+  checkIns: any[],
+  checkOuts: any[]
+): {
+  totalSalary: number;
+  departmentBreakdown: Array<{
+    departmentId: string;
+    hours: number;
+    hourlyRate: number;
+    salary: number;
+  }>;
+} => {
+  const departmentBreakdown: Array<{
+    departmentId: string;
+    hours: number;
+    hourlyRate: number;
+    salary: number;
+  }> = [];
+
+  // Ghép cặp check-in và check-out theo thời gian
+  const workSessions: Array<{
+    checkIn: any;
+    checkOut: any;
+    hours: number;
+  }> = [];
+
+  // Sắp xếp theo thời gian
+  const sortedCheckIns = [...checkIns].sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  );
+  const sortedCheckOuts = [...checkOuts].sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  );
+
+  // Ghép cặp check-in với check-out gần nhất sau nó
+  for (let i = 0; i < sortedCheckIns.length; i++) {
+    const checkIn = sortedCheckIns[i];
+    const checkOut = sortedCheckOuts.find(
+      (co) => new Date(co.time).getTime() > new Date(checkIn.time).getTime()
+    );
+
+    if (checkOut) {
+      const hours =
+        (new Date(checkOut.time).getTime() - new Date(checkIn.time).getTime()) /
+        (1000 * 60 * 60);
+      workSessions.push({
+        checkIn,
+        checkOut,
+        hours,
+      });
+    }
+  }
+
+  // Tính lương cho từng session
+  const departmentMap = new Map<
+    string,
+    {
+      hours: number;
+      hourlyRate: number;
+      salary: number;
+    }
+  >();
+
+  workSessions.forEach((session) => {
+    const departmentId = session.checkIn.departmentId.toString();
+    const hourlyRate = session.checkIn.hourlyRate;
+    const sessionSalary = session.hours * hourlyRate;
+
+    if (departmentMap.has(departmentId)) {
+      const existing = departmentMap.get(departmentId)!;
+      existing.hours += session.hours;
+      existing.salary += sessionSalary;
+    } else {
+      departmentMap.set(departmentId, {
+        hours: session.hours,
+        hourlyRate,
+        salary: sessionSalary,
+      });
+    }
+  });
+
+  // Chuyển đổi Map thành array
+  departmentMap.forEach((value, departmentId) => {
+    departmentBreakdown.push({
+      departmentId,
+      hours: Math.round(value.hours * 100) / 100, // Làm tròn 2 chữ số thập phân
+      hourlyRate: value.hourlyRate,
+      salary: Math.round(value.salary),
+    });
+  });
+
+  const totalSalary = departmentBreakdown.reduce(
+    (sum, dept) => sum + dept.salary,
+    0
+  );
+
+  return {
+    totalSalary,
+    departmentBreakdown,
+  };
+};
+
+// TODO: Tạm thời comment để tập trung vào chấm công nhiều lần
+// Lấy thông tin lương chi tiết cho một ngày
+/* export const getDailySalaryBreakdown = async (
+  userId: string,
+  workDate: string
+): Promise<{
+  totalSalary: number;
+  departmentBreakdown: Array<{
+    departmentId: string;
+    departmentName?: string;
+    hours: number;
+    hourlyRate: number;
+    salary: number;
+  }>;
+  workSessions: Array<{
+    checkInTime: Date;
+    checkOutTime: Date;
+    departmentId: string;
+    departmentName?: string;
+    hours: number;
+    hourlyRate: number;
+    salary: number;
+  }>;
+}> => {
+  const attendance = await AttendanceModel.findOne({
+    employeeId: userId,
+    workDate,
+  }).populate("checkIns.departmentId checkOuts.departmentId", "name");
+
+  if (!attendance || !attendance.checkIns || !attendance.checkOuts) {
+    return {
+      totalSalary: 0,
+      departmentBreakdown: [],
+      workSessions: [],
+    };
+  }
+
+  const salaryInfo = calculateDepartmentBasedSalary(
+    attendance.checkIns,
+    attendance.checkOuts
+  );
+
+  // Thêm tên bộ phận vào breakdown
+  const departmentBreakdownWithNames = salaryInfo.departmentBreakdown.map(
+    (dept) => ({
+      ...dept,
+      departmentName: "Unknown Department", // Sẽ được populate từ database
+    })
+  );
+
+  // Tạo thông tin chi tiết các session làm việc
+  const workSessions: Array<{
+    checkInTime: Date;
+    checkOutTime: Date;
+    departmentId: string;
+    departmentName?: string;
+    hours: number;
+    hourlyRate: number;
+    salary: number;
+  }> = [];
+
+  // Logic tương tự như trong calculateDepartmentBasedSalary nhưng trả về chi tiết sessions
+  const sortedCheckIns = [...attendance.checkIns].sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  );
+  const sortedCheckOuts = [...attendance.checkOuts].sort(
+    (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+  );
+
+  for (let i = 0; i < sortedCheckIns.length; i++) {
+    const checkIn = sortedCheckIns[i];
+    const checkOut = sortedCheckOuts.find(
+      (co) => new Date(co.time).getTime() > new Date(checkIn.time).getTime()
+    );
+
+    if (checkOut) {
+      const hours =
+        (new Date(checkOut.time).getTime() - new Date(checkIn.time).getTime()) /
+        (1000 * 60 * 60);
+      const salary = hours * checkIn.hourlyRate;
+
+      workSessions.push({
+        checkInTime: checkIn.time,
+        checkOutTime: checkOut.time,
+        departmentId: checkIn.departmentId.toString(),
+        departmentName: "Unknown Department", // Sẽ được populate
+        hours: Math.round(hours * 100) / 100,
+        hourlyRate: checkIn.hourlyRate,
+        salary: Math.round(salary),
+      });
+    }
+  }
+
+  return {
+    totalSalary: salaryInfo.totalSalary,
+    departmentBreakdown: departmentBreakdownWithNames,
+    workSessions,
+  };
+}; */
 
 export const updateAttendanceStatus = async (
   userId: string
@@ -562,17 +689,12 @@ export const UploadEmployeeFace = async (
     oldPublicId = `employee_faces/${fileName.split(".")[0]}`;
   }
 
-  // Tải ảnh mới lên Cloudinary
   const imageUrl = await uploadToCloudinary(file, "employee_faces");
 
-  // Xóa ảnh cũ nếu có
   if (oldPublicId) {
     try {
       await cloudinary.uploader.destroy(oldPublicId);
-      console.log(`Đã xóa ảnh cũ: ${oldPublicId}`);
-    } catch (error) {
-      console.warn(`Không thể xóa ảnh cũ ${oldPublicId}:`, error);
-    }
+    } catch (error) {}
   }
 
   // Cập nhật URL ảnh mới
@@ -606,7 +728,6 @@ export const getAttendanceHistory = async (
 ) => {
   const skip = (page - 1) * limit;
 
-  // Truy vấn dữ liệu có phân trang và sắp xếp theo ngày làm việc mới nhất
   const records = await AttendanceModel.find({
     employeeId: userId,
     status: "PRESENT", // Chỉ lấy những ngày đi làm
@@ -622,7 +743,6 @@ export const getAttendanceHistory = async (
     status: "PRESENT",
   });
 
-  // Định dạng lại dữ liệu trả về cho phù hợp với UI
   const formattedHistory = records.map((record) => {
     const workDate = new Date(record.workDate);
     // Format ngày thành dạng "Tháng Ngày", ví dụ "June 24"
@@ -632,7 +752,6 @@ export const getAttendanceHistory = async (
     });
 
     return {
-      // Có thể thêm id của record nếu cần key trong Flutter list
       id: record._id.toString(),
       date: dateFormatted,
       checkIn: formatTimeToAMPM(record.checkIn?.time),
@@ -666,22 +785,17 @@ export const getMonthlyDetails = async (
       $lte: endDate.toISOString().split("T")[0],
     },
   }).lean();
-
-  // Chuyển đổi thành một Map để truy cập nhanh bằng 'YYYY-MM-DD'
   const recordsMap = new Map(recordsOfMonth.map((r) => [r.workDate, r]));
-
-  // Khởi tạo các biến để tóm tắt tháng
   let summary = {
     workDays: 0,
     lateArrivals: 0,
     absences: 0,
-    holidays: 0, // Logic cho holiday có thể cần nguồn dữ liệu riêng
+    holidays: 0,
   };
 
   const daysInMonth = endDate.getDate();
   const dailyDetails = [];
 
-  // 2. Lặp qua tất cả các ngày trong tháng để tạo cấu trúc dữ liệu hoàn chỉnh
   for (let day = 1; day <= daysInMonth; day++) {
     const currentDate = new Date(year, month - 1, day);
     const workDateStr = `${year}-${String(month).padStart(2, "0")}-${String(

@@ -21,6 +21,8 @@ const userSchema = new Schema<IUserDocument>(
     otpCode: { type: String },
     otpExpires: { type: Number },
     isdeleted: { type: Boolean, default: false },
+    IdMapper: { type: Number, default: null },
+    CodeMapper: { type: String, maxlength: 50, default: null },
   },
   { timestamps: true }
 );

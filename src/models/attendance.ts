@@ -17,6 +17,19 @@ const attendanceEntrySchema = new Schema(
     time: { type: Date, required: true },
     imageUrl: { type: String, required: true },
     location: { type: locationSchema, required: true },
+    // TODO: Tạm thời làm optional để tập trung vào chấm công nhiều lần
+    departmentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      required: false, // Tạm thời không bắt buộc
+      default: null,
+    },
+    hourlyRate: {
+      type: Number,
+      required: false, // Tạm thời không bắt buộc
+      min: 0,
+      default: 0,
+    },
   },
   { _id: false }
 );
@@ -25,8 +38,20 @@ const attendanceSchema = new Schema<AttendanceDocument>(
   {
     employeeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     workDate: { type: String, required: true, index: true },
-    checkIn: { type: attendanceEntrySchema },
-    checkOut: { type: attendanceEntrySchema },
+
+    checkIns: [{ type: attendanceEntrySchema }],
+    checkOuts: [{ type: attendanceEntrySchema }],
+    // Backward compatibility fields - optional
+    checkIn: {
+      type: attendanceEntrySchema,
+      required: false,
+      default: undefined,
+    },
+    checkOut: {
+      type: attendanceEntrySchema,
+      required: false,
+      default: undefined,
+    },
     status: {
       type: String,
       enum: ["PRESENT", "ON_LEAVE"],
@@ -34,6 +59,8 @@ const attendanceSchema = new Schema<AttendanceDocument>(
     },
     totalHours: { type: String, default: "--" },
     overtime: { type: String, default: "--" },
+    IdMapper: { type: Number, default: null },
+    CodeMapper: { type: String, maxlength: 50, default: null },
   },
   { timestamps: true }
 );

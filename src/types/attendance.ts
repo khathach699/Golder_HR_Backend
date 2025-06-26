@@ -7,6 +7,12 @@ export interface InputLocationData {
   address: string;
 }
 
+// Dữ liệu đầu vào cho check-in/check-out với thông tin bộ phận
+export interface CheckInOutInput {
+  location: InputLocationData;
+  departmentId?: string; // ID bộ phận (optional, sẽ dùng default nếu không có)
+}
+
 // Cấu trúc location phức tạp hơn được lưu trong DB (theo locationSchema)
 export interface DBLocationData {
   address: string;
@@ -19,14 +25,20 @@ export interface DBLocationData {
 export interface AttendanceEntry {
   time: Date;
   imageUrl: string;
-  location: DBLocationData; // Sử dụng DBLocationData
+  location: DBLocationData;
+  // TODO: Tạm thời làm optional để tập trung vào chấm công nhiều lần
+  departmentId?: any; // ID bộ phận mà nhân viên đang làm việc (optional)
+  hourlyRate?: number; // Mức lương theo giờ tại thời điểm check-in/out (optional)
 }
 
 export interface AttendanceDocument extends Document {
-  // extends Document từ mongoose
-  _id: any; // Hoặc mongoose.Schema.Types.ObjectId
-  employeeId: any; // Hoặc mongoose.Schema.Types.ObjectId, ref: "User"
+  _id: any;
+  employeeId: any;
   workDate: string;
+  // Thêm mảng để hỗ trợ nhiều lần check-in/check-out
+  checkIns?: AttendanceEntry[];
+  checkOuts?: AttendanceEntry[];
+  // Giữ lại để backward compatibility
   checkIn?: AttendanceEntry;
   checkOut?: AttendanceEntry;
   status: "PRESENT" | "ON_LEAVE";
@@ -34,4 +46,6 @@ export interface AttendanceDocument extends Document {
   overtime: string;
   createdAt?: Date;
   updatedAt?: Date;
+  IdMapper: number;
+  CodeMapper: string;
 }

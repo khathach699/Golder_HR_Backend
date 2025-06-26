@@ -123,7 +123,7 @@ export const register = async (req: Request, res: Response) => {
  *                 type: string
  *                 format: password
  *                 description: User's password
- *                 example: Admin123@
+ *                 example: Admin123!
  *     responses:
  *       200:
  *         description: User logged in successfully

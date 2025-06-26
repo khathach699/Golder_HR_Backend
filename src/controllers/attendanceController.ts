@@ -108,7 +108,7 @@ export const checkIn = async (req: Request, res: Response) => {
 
 /**
  * @swagger
- * /api/auth/check-out:
+ * /api/attendance/check-out:
  *   post:
  *     summary: Employee check-out with face verification
  *     tags: [Attendance]
@@ -349,18 +349,38 @@ export const uploadEmployeeFace = async (req: Request, res: Response) => {
  *                 data:
  *                   type: object
  *                   properties:
+ *                     canCheckIn:
+ *                       type: boolean
+ *                       description: Whether user can check-in now
+ *                     canCheckOut:
+ *                       type: boolean
+ *                       description: Whether user can check-out now
+ *                     checkInsCount:
+ *                       type: number
+ *                       description: Total check-ins today
+ *                     checkOutsCount:
+ *                       type: number
+ *                       description: Total check-outs today
+ *                     lastCheckInTime:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Last check-in time
+ *                     lastCheckOutTime:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Last check-out time
+ *                     nextAction:
+ *                       type: string
+ *                       enum: [CHECK_IN, CHECK_OUT]
+ *                       description: Next allowed action
  *                     hasCheckedIn:
  *                       type: boolean
+ *                       description: Backward compatibility - has any check-in today
  *                     hasCheckedOut:
  *                       type: boolean
- *                     checkInTime:
- *                       type: string
- *                       format: date-time
- *                       nullable: true
- *                     checkOutTime:
- *                       type: string
- *                       format: date-time
- *                       nullable: true
+ *                       description: Backward compatibility - has any check-out today
  *       401:
  *         description: Unauthorized
  *       500:
@@ -379,16 +399,48 @@ export const checkAttendanceStatus = async (req: Request, res: Response) => {
       workDate,
     });
 
-    const hasCheckedIn = !!attendance?.checkIn;
-    const hasCheckedOut = !!attendance?.checkOut;
-    const checkInTime = attendance?.checkIn?.time || null;
-    const checkOutTime = attendance?.checkOut?.time || null;
+    if (!attendance) {
+      return CreateSuccessResponse(res, 200, {
+        canCheckIn: true,
+        canCheckOut: false,
+        checkInsCount: 0,
+        checkOutsCount: 0,
+        lastCheckInTime: null,
+        lastCheckOutTime: null,
+        nextAction: "CHECK_IN",
+      });
+    }
+
+    const checkInsCount = attendance.checkIns?.length || 0;
+    const checkOutsCount = attendance.checkOuts?.length || 0;
+
+    const canCheckIn = checkInsCount === checkOutsCount;
+    const canCheckOut = checkInsCount > checkOutsCount;
+
+    const lastCheckInTime =
+      attendance.checkIns && attendance.checkIns.length > 0
+        ? attendance.checkIns[attendance.checkIns.length - 1].time
+        : null;
+    const lastCheckOutTime =
+      attendance.checkOuts && attendance.checkOuts.length > 0
+        ? attendance.checkOuts[attendance.checkOuts.length - 1].time
+        : null;
+
+    const nextAction = canCheckIn ? "CHECK_IN" : "CHECK_OUT";
 
     return CreateSuccessResponse(res, 200, {
-      hasCheckedIn,
-      hasCheckedOut,
-      checkInTime,
-      checkOutTime,
+      canCheckIn,
+      canCheckOut,
+      checkInsCount,
+      checkOutsCount,
+      lastCheckInTime,
+      lastCheckOutTime,
+      nextAction,
+      // Backward compatibility
+      hasCheckedIn: checkInsCount > 0,
+      hasCheckedOut: checkOutsCount > 0,
+      checkInTime: lastCheckInTime,
+      checkOutTime: lastCheckOutTime,
     });
   } catch (error: any) {
     return CreateErrorResponse(
