@@ -501,21 +501,55 @@ export const updateAttendanceStatus = async (
     return `${hours}:${minutes} ${period}`;
   };
 
-  const checkInTime = attendance.checkIn?.time
-    ? formatTime(new Date(attendance.checkIn.time))
+  // Xử lý chấm công nhiều lần - ưu tiên mảng checkIns/checkOuts
+  let firstCheckInTime = null;
+  let lastCheckOutTime = null;
+
+  if (attendance.checkIns && attendance.checkIns.length > 0) {
+    // Sắp xếp theo thời gian và lấy lần check-in đầu tiên
+    const sortedCheckIns = [...attendance.checkIns].sort(
+      (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+    firstCheckInTime = sortedCheckIns[0].time;
+  } else if (attendance.checkIn?.time) {
+    // Fallback về backward compatibility field
+    firstCheckInTime = attendance.checkIn.time;
+  }
+
+  if (attendance.checkOuts && attendance.checkOuts.length > 0) {
+    // Sắp xếp theo thời gian và lấy lần check-out cuối cùng
+    const sortedCheckOuts = [...attendance.checkOuts].sort(
+      (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+    lastCheckOutTime = sortedCheckOuts[sortedCheckOuts.length - 1].time;
+  } else if (attendance.checkOut?.time) {
+    // Fallback về backward compatibility field
+    lastCheckOutTime = attendance.checkOut.time;
+  }
+
+  const checkInTime = firstCheckInTime
+    ? formatTime(new Date(firstCheckInTime))
     : null;
-  const checkOutTime = attendance.checkOut?.time
-    ? formatTime(new Date(attendance.checkOut.time))
+  const checkOutTime = lastCheckOutTime
+    ? formatTime(new Date(lastCheckOutTime))
     : "--:-- --";
   const currentTime = new Date();
 
   let totalHours = attendance.totalHours || "--";
   let overtime = attendance.overtime || "--";
 
-  if (attendance.checkIn && !attendance.checkOut) {
-    totalHours = calculateTotalHours(attendance.checkIn.time, currentTime);
-    overtime = calculateOvertime(attendance.checkIn.time, currentTime);
-  } else if (attendance.checkIn && attendance.checkOut) {
+  // Kiểm tra trạng thái hiện tại: nếu có check-in nhưng chưa check-out hoàn toàn
+  const hasActiveSession =
+    attendance.checkIns &&
+    attendance.checkOuts &&
+    attendance.checkIns.length > attendance.checkOuts.length;
+
+  if (firstCheckInTime && hasActiveSession) {
+    // Đang trong session làm việc, tính thời gian real-time
+    totalHours = calculateTotalHours(firstCheckInTime, currentTime);
+    overtime = calculateOvertime(firstCheckInTime, currentTime);
+  } else if (firstCheckInTime && lastCheckOutTime) {
+    // Đã hoàn thành tất cả sessions, sử dụng dữ liệu đã tính
     totalHours = attendance.totalHours || "--";
     overtime = attendance.overtime || "--";
   }
@@ -586,7 +620,10 @@ export const getWeekSummary = async (userId: string) => {
   // Lấy tất cả bản ghi trong tuần
   const weeklyRecords = await AttendanceModel.find({
     employeeId: userId,
-    "checkIn.time": { $gte: start, $lte: end },
+    workDate: {
+      $gte: start.toISOString().split("T")[0],
+      $lte: end.toISOString().split("T")[0],
+    },
     status: "PRESENT", // Chỉ tính những ngày đi làm
   }).lean();
 
@@ -602,9 +639,22 @@ export const getWeekSummary = async (userId: string) => {
     if (record.overtime)
       overtimeMinutes += parseDurationToMinutes(record.overtime);
 
-    // Kiểm tra đi trễ (ví dụ: sau 9:05 AM)
-    if (record.checkIn?.time) {
-      const checkInTime = new Date(record.checkIn.time);
+    // Kiểm tra đi trễ dựa trên lần check-in đầu tiên (ví dụ: sau 9:05 AM)
+    let firstCheckInTime = null;
+
+    if (record.checkIns && record.checkIns.length > 0) {
+      // Sắp xếp theo thời gian và lấy lần check-in đầu tiên
+      const sortedCheckIns = [...record.checkIns].sort(
+        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+      );
+      firstCheckInTime = sortedCheckIns[0].time;
+    } else if (record.checkIn?.time) {
+      // Fallback về backward compatibility field
+      firstCheckInTime = record.checkIn.time;
+    }
+
+    if (firstCheckInTime) {
+      const checkInTime = new Date(firstCheckInTime);
       if (
         checkInTime.getHours() > 9 ||
         (checkInTime.getHours() === 9 && checkInTime.getMinutes() > 5)
@@ -716,6 +766,7 @@ const formatTimeToAMPM = (date?: Date): string => {
 
 /**
  * Lấy lịch sử chấm công có phân trang cho một nhân viên.
+ * Hiển thị tất cả các lần chấm công trong ngày (mỗi cặp check-in/check-out là một dòng riêng).
  * @param userId ID của nhân viên
  * @param page Số trang hiện tại (mặc định 1)
  * @param limit Số lượng bản ghi trên mỗi trang (mặc định 10)
@@ -743,7 +794,9 @@ export const getAttendanceHistory = async (
     status: "PRESENT",
   });
 
-  const formattedHistory = records.map((record) => {
+  const formattedHistory: any[] = [];
+
+  records.forEach((record) => {
     const workDate = new Date(record.workDate);
     // Format ngày thành dạng "Tháng Ngày", ví dụ "June 24"
     const dateFormatted = workDate.toLocaleString("en-US", {
@@ -751,13 +804,47 @@ export const getAttendanceHistory = async (
       day: "numeric",
     });
 
-    return {
-      id: record._id.toString(),
-      date: dateFormatted,
-      checkIn: formatTimeToAMPM(record.checkIn?.time),
-      checkOut: formatTimeToAMPM(record.checkOut?.time),
-      totalHours: record.totalHours || "--",
-    };
+    // Xử lý chấm công nhiều lần trong ngày
+    if (record.checkIns && record.checkIns.length > 0) {
+      // Sắp xếp check-ins và check-outs theo thời gian
+      const sortedCheckIns = [...record.checkIns].sort(
+        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+      );
+      const sortedCheckOuts = record.checkOuts
+        ? [...record.checkOuts].sort(
+            (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+          )
+        : [];
+
+      // Tạo các cặp check-in/check-out
+      for (let i = 0; i < sortedCheckIns.length; i++) {
+        const checkIn = sortedCheckIns[i];
+        const checkOut = sortedCheckOuts[i]; // Có thể undefined nếu chưa check-out
+
+        // Tính thời gian làm việc cho cặp này
+        let sessionHours = "--";
+        if (checkIn && checkOut) {
+          sessionHours = calculateTotalHours(checkIn.time, checkOut.time);
+        }
+
+        formattedHistory.push({
+          id: `${record._id.toString()}_${i}`, // ID duy nhất cho mỗi session
+          date: i === 0 ? dateFormatted : `${dateFormatted} (${i + 1})`, // Đánh số session
+          checkIn: formatTimeToAMPM(checkIn.time),
+          checkOut: checkOut ? formatTimeToAMPM(checkOut.time) : "--:--",
+          totalHours: sessionHours,
+        });
+      }
+    } else {
+      // Fallback về backward compatibility fields
+      formattedHistory.push({
+        id: record._id.toString(),
+        date: dateFormatted,
+        checkIn: formatTimeToAMPM(record.checkIn?.time),
+        checkOut: formatTimeToAMPM(record.checkOut?.time),
+        totalHours: record.totalHours || "--",
+      });
+    }
   });
 
   return {
@@ -819,8 +906,36 @@ export const getMonthlyDetails = async (
     } else if (record) {
       dayInfo.totalHours = record.totalHours || "--";
       dayInfo.overtime = record.overtime || "--";
-      dayInfo.checkIn = formatTimeToAMPM(record.checkIn?.time);
-      dayInfo.checkOut = formatTimeToAMPM(record.checkOut?.time);
+
+      // Xử lý chấm công nhiều lần - ưu tiên mảng checkIns/checkOuts
+      let firstCheckInTime = null;
+      let lastCheckOutTime = null;
+
+      if (record.checkIns && record.checkIns.length > 0) {
+        // Sắp xếp theo thời gian và lấy lần check-in đầu tiên
+        const sortedCheckIns = [...record.checkIns].sort(
+          (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        firstCheckInTime = sortedCheckIns[0].time;
+        dayInfo.checkIn = formatTimeToAMPM(firstCheckInTime);
+      } else if (record.checkIn?.time) {
+        // Fallback về backward compatibility field
+        firstCheckInTime = record.checkIn.time;
+        dayInfo.checkIn = formatTimeToAMPM(firstCheckInTime);
+      }
+
+      if (record.checkOuts && record.checkOuts.length > 0) {
+        // Sắp xếp theo thời gian và lấy lần check-out cuối cùng
+        const sortedCheckOuts = [...record.checkOuts].sort(
+          (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        lastCheckOutTime = sortedCheckOuts[sortedCheckOuts.length - 1].time;
+        dayInfo.checkOut = formatTimeToAMPM(lastCheckOutTime);
+      } else if (record.checkOut?.time) {
+        // Fallback về backward compatibility field
+        lastCheckOutTime = record.checkOut.time;
+        dayInfo.checkOut = formatTimeToAMPM(lastCheckOutTime);
+      }
 
       if (record.status === "ON_LEAVE") {
         dayInfo.status = "On Leave"; // Trùng với Days Off trong UI trước
@@ -828,9 +943,9 @@ export const getMonthlyDetails = async (
         dayInfo.status = "On Time";
         summary.workDays++;
 
-        // Logic kiểm tra đi trễ (ví dụ: sau 9:05 AM)
-        if (record.checkIn?.time) {
-          const checkInTime = new Date(record.checkIn.time);
+        // Logic kiểm tra đi trễ dựa trên lần check-in đầu tiên (ví dụ: sau 9:05 AM)
+        if (firstCheckInTime) {
+          const checkInTime = new Date(firstCheckInTime);
           if (
             checkInTime.getHours() > 9 ||
             (checkInTime.getHours() === 9 && checkInTime.getMinutes() > 5)
