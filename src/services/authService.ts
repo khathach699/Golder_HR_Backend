@@ -141,3 +141,65 @@ export const ChangePassword = async (
   user.password = newPassword;
   await user.save();
 };
+
+// === PROFILE MANAGEMENT ===
+
+export const GetUserProfile = async (userId: string) => {
+  const user = await User.findById(userId).populate("role");
+  if (!user || user.isdeleted || user.isdisable) {
+    throw new Error(AUTH_ERRORS.USER_NOT_FOUND);
+  }
+  return user;
+};
+
+export const UpdateUserProfile = async (
+  userId: string,
+  updateData: {
+    fullname?: string;
+    email?: string;
+    phone?: string;
+    avatar?: string;
+    department?: string;
+    position?: string;
+  }
+) => {
+  const user = await User.findById(userId);
+  if (!user || user.isdeleted || user.isdisable) {
+    throw new Error(AUTH_ERRORS.USER_NOT_FOUND);
+  }
+
+  // Check if email is being changed and if it already exists
+  if (updateData.email && updateData.email !== user.email) {
+    const existingUser = await User.findOne({ email: updateData.email });
+    if (existingUser && existingUser._id?.toString() !== userId) {
+      throw new Error(AUTH_ERRORS.EMAIL_ALREADY_EXISTS);
+    }
+  }
+
+  // Update user fields
+  if (updateData.fullname) user.fullname = updateData.fullname;
+  if (updateData.email) user.email = updateData.email;
+  if (updateData.phone) user.phone = updateData.phone;
+  if (updateData.avatar) user.avatar = updateData.avatar;
+  if (updateData.department) user.department = updateData.department;
+  if (updateData.position) user.position = updateData.position;
+
+  const updatedUser = await user.save();
+  return await User.findById(updatedUser._id).populate("role");
+};
+
+export const UploadUserAvatar = async (userId: string, imageBuffer: Buffer) => {
+  const user = await User.findById(userId);
+  if (!user || user.isdeleted || user.isdisable) {
+    throw new Error(AUTH_ERRORS.USER_NOT_FOUND);
+  }
+
+  // Upload to cloudinary
+  const avatarUrl = await uploadToCloudinary(imageBuffer, "avatars");
+
+  // Update user avatar
+  user.avatar = avatarUrl;
+  await user.save();
+
+  return avatarUrl;
+};

@@ -152,15 +152,21 @@ export const register = async (req: Request, res: Response) => {
  */
 export const login = async (req: Request, res: Response) => {
   try {
+    console.log("Login attempt:", req.body);
     const { email, password } = req.body as LoginRequestBody;
-    const userId = await AuthService.CheckLogin(email, password);
+    console.log("Checking login for:", email);
+
+    const user = await AuthService.CheckLogin(email, password);
+    console.log("Login successful for user:", user._id);
+
     const exp = Date.now() + 60 * 60 * 1000; // 1 hour
-    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET!, {
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
       expiresIn: "1h",
     });
     CreateCookieResponse(res, "token", token, exp);
-    return CreateSuccessResponse(res, 200, { token, userId });
+    return CreateSuccessResponse(res, 200, { token, user });
   } catch (error: any) {
+    console.error("Login error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -338,6 +344,185 @@ export const changePassword = async (req: Request, res: Response) => {
     return CreateSuccessResponse(res, 200, {
       message: "Password changed successfully.",
     });
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     fullname:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     avatar:
+ *                       type: string
+ *                     role:
+ *                       type: object
+ *       401:
+ *         description: Unauthorized
+ */
+export const getUserProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+
+    if (!userId) {
+      return CreateErrorResponse(
+        res,
+        401,
+        "Unauthorized: User ID not found in token."
+      );
+    }
+
+    const user = await AuthService.GetUserProfile(userId);
+    return CreateSuccessResponse(res, 200, user);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   put:
+ *     summary: Update user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullname:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               avatar:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+export const updateUserProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { fullname, email, phone, avatar, department, position } = req.body;
+
+    if (!userId) {
+      return CreateErrorResponse(
+        res,
+        401,
+        "Unauthorized: User ID not found in token."
+      );
+    }
+
+    const updatedUser = await AuthService.UpdateUserProfile(userId, {
+      fullname,
+      email,
+      phone,
+      avatar,
+      department,
+      position,
+    });
+
+    return CreateSuccessResponse(res, 200, updatedUser);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 400, error.message);
+  }
+};
+
+/**
+ * @swagger
+ * /api/auth/upload-avatar:
+ *   post:
+ *     summary: Upload user avatar
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     avatarUrl:
+ *                       type: string
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+export const uploadAvatar = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+
+    if (!userId) {
+      return CreateErrorResponse(
+        res,
+        401,
+        "Unauthorized: User ID not found in token."
+      );
+    }
+
+    if (!req.file) {
+      return CreateErrorResponse(res, 400, "No image file provided");
+    }
+
+    const avatarUrl = await AuthService.UploadUserAvatar(
+      userId,
+      req.file.buffer
+    );
+
+    return CreateSuccessResponse(res, 200, { avatarUrl });
   } catch (error: any) {
     return CreateErrorResponse(res, 400, error.message);
   }

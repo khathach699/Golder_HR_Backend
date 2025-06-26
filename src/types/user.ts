@@ -6,6 +6,9 @@ export interface IUser {
   email: string;
   password: string;
   avatar?: string;
+  phone?: string;
+  department?: string;
+  position?: string;
   point?: number;
   isdisable?: boolean;
   referenceImageUrl?: string;

@@ -19,7 +19,10 @@ const options = {
 export const validate = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map((err) => err.msg).join(", ");
+    const errorMessages = errors
+      .array()
+      .map((err) => err.msg)
+      .join(", ");
     return CreateErrorResponse(res, 400, errorMessages);
   }
   next();
@@ -34,16 +37,14 @@ export const SignupValidator = [
     ),
   body("fullname")
     .isLength({ min: options.fullname.minLength })
-    .withMessage(`Fullname must be at least ${options.fullname.minLength} characters long`),
+    .withMessage(
+      `Fullname must be at least ${options.fullname.minLength} characters long`
+    ),
 ];
 
 export const LoginValidator = [
   body("email").isEmail().withMessage(VALIDATOR_ERRORS.EMAIL),
-  body("password")
-    .isStrongPassword(options.password)
-    .withMessage(
-      `Password must be at least ${options.password.minLength} characters long with ${options.password.minLowercase} lowercase, ${options.password.minUppercase} uppercase, ${options.password.minNumbers} number, and ${options.password.minSymbols} symbol`
-    ),
+  body("password").notEmpty().withMessage("Password is required"),
 ];
 
 export const ChangePasswordValidator = [

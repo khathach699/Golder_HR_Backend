@@ -38,6 +38,20 @@ router.post(
   AuthController.changePassword
 );
 
+// Route lấy thông tin profile
+router.get("/me", check_authentication, AuthController.getUserProfile);
+
+// Route cập nhật profile
+router.put("/profile", check_authentication, AuthController.updateUserProfile);
+
+// Route upload avatar
+router.post(
+  "/upload-avatar",
+  check_authentication,
+  upload.single("avatar"),
+  AuthController.uploadAvatar
+);
+
 // Route đăng xuất
 router.post("/logout", AuthController.logout);
 
