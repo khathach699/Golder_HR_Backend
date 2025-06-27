@@ -1,0 +1,743 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getMonthlyDetails = exports.getHistory = exports.getMonthSummary = exports.getWeekSummary = exports.getTodaySummary = exports.checkAttendanceStatus = exports.uploadEmployeeFace = exports.getUsersForDropdown = exports.checkOut = exports.checkIn = void 0;
+const attendanceService_1 = require("../services/attendanceService");
+const responseHandler_1 = require("../utils/responseHandler");
+const multer_1 = __importDefault(require("multer"));
+const user_1 = __importDefault(require("../models/user"));
+const constants_1 = require("../utils/constants");
+const attendance_1 = __importDefault(require("../models/attendance"));
+const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
+const AttendanceService = __importStar(require("../services/attendanceService"));
+/**
+ * @swagger
+ * /api/attendance/check-in:
+ *   post:
+ *     summary: Employee check-in with face verification
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Face image for verification
+ *               location:
+ *                 type: object
+ *                 properties:
+ *                   coordinates:
+ *                     type: array
+ *                     items:
+ *                       type: number
+ *                     example: [106.6297, 10.8231]
+ *                   address:
+ *                     type: string
+ *                     example: "123 Đường Láng, Hà Nội"
+ *     responses:
+ *       200:
+ *         description: Check-in successful
+ *       400:
+ *         description: Bad request or face verification failed
+ *       401:
+ *         description: Unauthorized
+ */
+const checkIn = async (req, res) => {
+    try {
+        const userId = req.user?.id; // Nên dùng optional chaining
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        if (!req.file) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "No image file provided");
+        }
+        const { location: locationString } = req.body; // Lấy location dưới dạng chuỗi
+        if (!locationString) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Location data is required");
+        }
+        let locationData;
+        try {
+            // Parse toàn bộ chuỗi location
+            locationData = JSON.parse(locationString);
+        }
+        catch (e) {
+            // Nếu parse lỗi -> dữ liệu không hợp lệ
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Invalid location JSON format");
+        }
+        // Bây giờ kiểm tra các thuộc tính bên trong đối tượng đã parse
+        if (!locationData ||
+            !locationData.coordinates ||
+            !locationData.address ||
+            !Array.isArray(locationData.coordinates)) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Location must include coordinates (array) and address (string)");
+        }
+        // Bây giờ bạn đã có locationData an toàn để sử dụng
+        // locationData sẽ có dạng { coordinates: [106.6, 10.8], address: "..." }
+        // Kiểu dữ liệu của coordinates đã là array, không cần parse lại
+        const attendance = await (0, attendanceService_1.CheckIn)(userId, req.file.buffer, locationData);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, { attendance });
+    }
+    catch (error) {
+        // Bắt các lỗi từ CheckIn() service hoặc lỗi không lường trước
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message || "An internal server error occurred");
+    }
+};
+exports.checkIn = checkIn;
+/**
+ * @swagger
+ * /api/attendance/check-out:
+ *   post:
+ *     summary: Employee check-out with face verification
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Face image for verification
+ *               location:
+ *                 type: string
+ *                 description: "A JSON string representing the location object. Example: {\"coordinates\":[106.6297,10.8231],\"address\":\"123 Đường Láng, Hà Nội\"}"
+ *                 example: '{"coordinates":[106.6297,10.8231],"address":"123 Đường Láng, Hà Nội"}'
+ *     responses:
+ *       200:
+ *         description: Check-out successful
+ *       400:
+ *         description: Bad request or face verification failed
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const checkOut = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        // Kiểm tra an toàn cho userId, mặc dù middleware đã làm
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized: User ID not found in token");
+        }
+        // 1. Kiểm tra file ảnh
+        if (!req.file) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "No image file provided");
+        }
+        // 2. Lấy chuỗi location từ req.body
+        const { location: locationString } = req.body;
+        if (!locationString || typeof locationString !== "string") {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Location data is required as a JSON string");
+        }
+        // 3. Phân tích chuỗi JSON an toàn
+        let locationData;
+        try {
+            locationData = JSON.parse(locationString);
+        }
+        catch (e) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Invalid location JSON format");
+        }
+        // 4. Kiểm tra cấu trúc của đối tượng location đã parse
+        if (!locationData ||
+            !locationData.coordinates ||
+            !locationData.address ||
+            !Array.isArray(locationData.coordinates)) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Location must include coordinates (array) and address (string)");
+        }
+        // 5. Gọi service với dữ liệu đã được xác thực
+        const attendance = await (0, attendanceService_1.CheckOut)(userId, req.file.buffer, locationData);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, { attendance });
+    }
+    catch (error) {
+        // 6. Bắt tất cả các lỗi khác (từ service CheckOut hoặc lỗi không lường trước)
+        // Trả về message của lỗi để debug nhưng trong production có thể che đi
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message || "An internal server error occurred");
+    }
+};
+exports.checkOut = checkOut;
+/**
+ * @swagger
+ * /api/attendance/users-dropdown:
+ *   get:
+ *     summary: Get list of active users for dropdown (Admin only)
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "60c72b2f9b1e8b001c8f1234"
+ *                       fullname:
+ *                         type: string
+ *                         example: "Nguyễn Văn A"
+ *                       email:
+ *                         type: string
+ *                         example: "vana@example.com"
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const getUsersForDropdown = async (req, res) => {
+    try {
+        const users = await user_1.default.find({ isdeleted: false, isdisable: false })
+            .select("fullname email")
+            .lean();
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, users.map((user) => ({
+            id: user._id.toString(),
+            fullname: user.fullname,
+            email: user.email,
+        })));
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getUsersForDropdown = getUsersForDropdown;
+/**
+ * @swagger
+ * /api/attendance/upload-face/{userId}:
+ *   post:
+ *     summary: Upload employee's face image (Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the employee selected from the dropdown
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Face image file
+ *     responses:
+ *       200:
+ *         description: Face image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imageUrl:
+ *                       type: string
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Unauthorized
+ */
+const uploadEmployeeFace = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!req.file) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "No image file provided");
+        }
+        const user = await user_1.default.findById(userId);
+        if (!user || user.isdeleted || user.isdisable) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, constants_1.AUTH_ERRORS.USER_NOT_FOUND);
+        }
+        const imageUrl = await AttendanceService.UploadEmployeeFace(userId, req.file.buffer);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+            imageUrl,
+            user: { id: user._id, fullname: user.fullname, email: user.email },
+        });
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
+};
+exports.uploadEmployeeFace = uploadEmployeeFace;
+/**
+ * @swagger
+ * /api/attendance/check-status:
+ *   get:
+ *     summary: Check if user has checked in/out today
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Check status successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     canCheckIn:
+ *                       type: boolean
+ *                       description: Whether user can check-in now
+ *                     canCheckOut:
+ *                       type: boolean
+ *                       description: Whether user can check-out now
+ *                     checkInsCount:
+ *                       type: number
+ *                       description: Total check-ins today
+ *                     checkOutsCount:
+ *                       type: number
+ *                       description: Total check-outs today
+ *                     lastCheckInTime:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Last check-in time
+ *                     lastCheckOutTime:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Last check-out time
+ *                     nextAction:
+ *                       type: string
+ *                       enum: [CHECK_IN, CHECK_OUT]
+ *                       description: Next allowed action
+ *                     hasCheckedIn:
+ *                       type: boolean
+ *                       description: Backward compatibility - has any check-in today
+ *                     hasCheckedOut:
+ *                       type: boolean
+ *                       description: Backward compatibility - has any check-out today
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const checkAttendanceStatus = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        const workDate = new Date().toISOString().split("T")[0];
+        const attendance = await attendance_1.default.findOne({
+            employeeId: userId,
+            workDate,
+        });
+        if (!attendance) {
+            return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+                canCheckIn: true,
+                canCheckOut: false,
+                checkInsCount: 0,
+                checkOutsCount: 0,
+                lastCheckInTime: null,
+                lastCheckOutTime: null,
+                nextAction: "CHECK_IN",
+            });
+        }
+        const checkInsCount = attendance.checkIns?.length || 0;
+        const checkOutsCount = attendance.checkOuts?.length || 0;
+        const canCheckIn = checkInsCount === checkOutsCount;
+        const canCheckOut = checkInsCount > checkOutsCount;
+        const lastCheckInTime = attendance.checkIns && attendance.checkIns.length > 0
+            ? attendance.checkIns[attendance.checkIns.length - 1].time
+            : null;
+        const lastCheckOutTime = attendance.checkOuts && attendance.checkOuts.length > 0
+            ? attendance.checkOuts[attendance.checkOuts.length - 1].time
+            : null;
+        const nextAction = canCheckIn ? "CHECK_IN" : "CHECK_OUT";
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+            canCheckIn,
+            canCheckOut,
+            checkInsCount,
+            checkOutsCount,
+            lastCheckInTime,
+            lastCheckOutTime,
+            nextAction,
+            // Backward compatibility
+            hasCheckedIn: checkInsCount > 0,
+            hasCheckedOut: checkOutsCount > 0,
+            checkInTime: lastCheckInTime,
+            checkOutTime: lastCheckOutTime,
+        });
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message || "An internal server error occurred");
+    }
+};
+exports.checkAttendanceStatus = checkAttendanceStatus;
+// attendanceController.ts
+/**
+ * @swagger
+ * /api/attendance/today-summary:
+ *   get:
+ *     summary: Get a comprehensive summary of today's attendance for the logged-in user.
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's summary retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     isCheckedIn:
+ *                       type: boolean
+ *                     isCheckedOut:
+ *                       type: boolean
+ *                     checkInTime:
+ *                       type: string
+ *                       example: "08:55 AM"
+ *                     checkOutTime:
+ *                       type: string
+ *                       example: "--:-- --"
+ *                     totalHours:
+ *                       type: string
+ *                       example: "2h 37m"
+ *                     overtime:
+ *                       type: string
+ *                       example: "0h 0m"
+ */
+const getTodaySummary = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        const summary = await AttendanceService.updateAttendanceStatus(userId);
+        const isCheckedIn = summary.checkInTime !== null;
+        // isCheckedOut được xác định bởi checkOutTime có phải là giá trị mặc định hay không
+        const isCheckedOut = summary.checkOutTime !== "--:-- --";
+        const responseData = {
+            isCheckedIn,
+            isCheckedOut,
+            ...summary,
+        };
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, responseData);
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getTodaySummary = getTodaySummary;
+/**
+ * @swagger
+ * /api/attendance/summary/week:
+ *   get:
+ *     summary: Get weekly attendance summary for the current user
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Weekly summary retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workDays:
+ *                   type: string
+ *                   example: "4 / 5"
+ *                 totalHours:
+ *                   type: string
+ *                   example: "32h 15m"
+ *                 overtime:
+ *                   type: string
+ *                   example: "2h 30m"
+ *                 lateArrivals:
+ *                   type: number
+ *                   example: 1
+ *                 performance:
+ *                   type: number
+ *                   example: 0.8
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const getWeekSummary = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        const summary = await AttendanceService.getWeekSummary(userId);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, summary);
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getWeekSummary = getWeekSummary;
+/**
+ * @swagger
+ * /api/attendance/summary/month:
+ *   get:
+ *     summary: Get monthly attendance summary for the current user
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Monthly summary retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workDays:
+ *                   type: string
+ *                   example: "18 / 22"
+ *                 totalHours:
+ *                   type: string
+ *                   example: "144h 45m"
+ *                 overtime:
+ *                   type: string
+ *                   example: "8h 15m"
+ *                 daysOff:
+ *                   type: number
+ *                   example: 2
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const getMonthSummary = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        const summary = await AttendanceService.getMonthSummary(userId);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, summary);
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getMonthSummary = getMonthSummary;
+/**
+ * @swagger
+ * /api/attendance/history:
+ *   get:
+ *     summary: Get paginated attendance history for the current user
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number to retrieve.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: The number of records to retrieve per page.
+ *     responses:
+ *       200:
+ *         description: A list of attendance records with pagination info.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 history:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "60d0fe4f5311236168a109ca"
+ *                       date:
+ *                         type: string
+ *                         example: "June 24"
+ *                       checkIn:
+ *                         type: string
+ *                         example: "09:00 AM"
+ *                       checkOut:
+ *                         type: string
+ *                         example: "05:00 PM"
+ *                       totalHours:
+ *                         type: string
+ *                         example: "8h 0m"
+ *                 currentPage:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 5
+ *                 totalRecords:
+ *                   type: integer
+ *                   example: 48
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const getHistory = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        // Lấy page và limit từ query params, chuyển về dạng số và đặt giá trị mặc định
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const data = await AttendanceService.getAttendanceHistory(userId, page, limit);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, data);
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getHistory = getHistory;
+/**
+ * @swagger
+ * /api/attendance/monthly-details:
+ *   get:
+ *     summary: Get full attendance details and summary for a specific month
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         required: true
+ *         schema: { type: integer, example: 2025 }
+ *         description: The year to retrieve data for.
+ *       - in: query
+ *         name: month
+ *         required: true
+ *         schema: { type: integer, example: 6 }
+ *         description: The month to retrieve data for (1-12).
+ *     responses:
+ *       200:
+ *         description: Monthly details and summary retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 dailyDetails:
+ *                   type: array
+ *                   items:
+ *                      type: object
+ *                      properties:
+ *                          date:
+ *                            type: string
+ *                            format: date-time
+ *                          status:
+ *                            type: string
+ *                            enum: [On Time, Late, Absent, Weekend, On Leave, Holiday]
+ *                          checkIn:
+ *                            type: string
+ *                          checkOut:
+ *                            type: string
+ *                          totalHours:
+ *                            type: string
+ *                          overtime:
+ *                            type: string
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                       workDays: { type: number }
+ *                       lateArrivals: { type: number }
+ *                       absences: { type: number }
+ *                       holidays: { type: number }
+ */
+const getMonthlyDetails = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        const year = parseInt(req.query.year);
+        const month = parseInt(req.query.month);
+        if (!year || !month || month < 1 || month > 12) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Valid 'year' and 'month' (1-12) are required.");
+        }
+        const data = await AttendanceService.getMonthlyDetails(userId, year, month);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, data);
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getMonthlyDetails = getMonthlyDetails;

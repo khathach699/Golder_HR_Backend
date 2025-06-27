@@ -8,12 +8,12 @@ import {
   getDepartmentsForDropdown,
   getEmployeesForDropdown,
 } from "../controllers/departmentSalaryController";
-import { check_authentication } from "../middlewares/authMiddleware";
+import { authenticateToken } from "../middlewares/authMiddleware";
 
 const router = Router();
 
 // Apply authentication middleware to all routes
-router.use(check_authentication);
+router.use(authenticateToken);
 
 // Create or update department salary for employee
 router.post("/", createDepartmentSalary);

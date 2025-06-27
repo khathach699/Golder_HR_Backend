@@ -13,15 +13,13 @@ import routes from "./routes/index";
 import { CreateErrorResponse } from "./utils/responseHandler";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import NotificationScheduler from "./services/notificationScheduler";
 
-
-
-
-const PORT = process.env.PORT || 3000
-const MONGO_URL = process.env.MONGO_URL ;
+const PORT = process.env.PORT || 3000;
+const MONGO_URL = process.env.MONGO_URL;
 const COOKIE_SECRET = process.env.COOKIE_SECRET || "your_cookie_secret_here";
-if(!MONGO_URL){
-    throw new Error("❌ MONGO_URL environment variable is not defined!");
+if (!MONGO_URL) {
+  throw new Error("❌ MONGO_URL environment variable is not defined!");
 }
 
 // Database connection function
@@ -63,7 +61,7 @@ const swaggerOptions = {
         },
       },
     },
-    security: [ 
+    security: [
       {
         bearerAuth: [],
       },
@@ -71,7 +69,6 @@ const swaggerOptions = {
   },
   apis: ["./src/controllers/*.ts"],
 };
-
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
@@ -87,7 +84,10 @@ const initializeApp = async () => {
     rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 100,
-      message: { success: false, message: "Too many requests, please try again later." },
+      message: {
+        success: false,
+        message: "Too many requests, please try again later.",
+      },
     })
   );
   app.use(morgan("dev"));
@@ -114,10 +114,15 @@ const initializeApp = async () => {
     CreateErrorResponse(res, err.status || 500, err.message);
   });
 
+  // Start notification scheduler
+  const notificationScheduler = NotificationScheduler.getInstance();
+  notificationScheduler.start();
+
   // Start server
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
+    console.log(`Notification scheduler started`);
   });
 };
 

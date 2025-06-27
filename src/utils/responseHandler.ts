@@ -3,19 +3,26 @@ import { Response } from "express";
 export const CreateSuccessResponse = (
   res: Response,
   status: number,
-  data: unknown
+  messageOrData: string | unknown,
+  data?: unknown
 ) => {
-  res.status(status).json({ success: true, data });
+  if (typeof messageOrData === "string") {
+    res.status(status).json({ success: true, message: messageOrData, data });
+  } else {
+    res.status(status).json({ success: true, data: messageOrData });
+  }
 };
 
 export const CreateErrorResponse = (
   res: Response,
   status: number,
-  message: string
+  message: string,
+  data?: unknown
 ) => {
   res.status(status).json({
     success: false,
     message,
+    data,
     error: process.env.NODE_ENV === "development" ? message : undefined,
   });
 };

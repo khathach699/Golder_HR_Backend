@@ -1,0 +1,764 @@
+openapi: 3.0.0
+info:
+  title: Overtime Management API
+  description: API for managing overtime requests in HR system
+  version: 1.0.0
+  contact:
+    name: HR System Support
+    email: support@company.com
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.company.com/api
+    description: Production server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OvertimeRequest:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique identifier for the overtime request
+          example: "60d5ecb74b24a1234567890a"
+        employeeId:
+          type: string
+          description: ID of the employee making the request
+          example: "60d5ecb74b24a1234567890b"
+        employeeName:
+          type: string
+          description: Name of the employee
+          example: "John Doe"
+        date:
+          type: string
+          format: date
+          description: Date of overtime work
+          example: "2024-01-15"
+        startTime:
+          type: string
+          format: date-time
+          description: Start time of overtime
+          example: "2024-01-15T18:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: End time of overtime
+          example: "2024-01-15T22:00:00Z"
+        hours:
+          type: number
+          description: Total overtime hours
+          example: 4.0
+        reason:
+          type: string
+          description: Reason for overtime request
+          example: "Complete urgent project deadline"
+        type:
+          type: string
+          enum: [regular, weekend, holiday]
+          description: Type of overtime
+          example: "regular"
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          description: Status of the request
+          example: "pending"
+        assignedApproverId:
+          type: string
+          description: ID of the assigned approver
+          example: "60d5ecb74b24a1234567890c"
+        approvedBy:
+          type: string
+          description: ID of the actual approver
+          example: "60d5ecb74b24a1234567890c"
+        approvedAt:
+          type: string
+          format: date-time
+          description: Approval timestamp
+          example: "2024-01-16T09:00:00Z"
+        rejectionReason:
+          type: string
+          description: Reason for rejection
+          example: "Insufficient justification"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T17:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-16T09:00:00Z"
+
+    OvertimeRequestInput:
+      type: object
+      required:
+        - date
+        - startTime
+        - endTime
+        - reason
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date of overtime work
+          example: "2024-01-15"
+        startTime:
+          type: string
+          format: date-time
+          description: Start time of overtime
+          example: "2024-01-15T18:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: End time of overtime
+          example: "2024-01-15T22:00:00Z"
+        reason:
+          type: string
+          description: Reason for overtime request
+          example: "Complete urgent project deadline"
+        type:
+          type: string
+          enum: [regular, weekend, holiday]
+          default: regular
+          description: Type of overtime
+        approverId:
+          type: string
+          description: ID of the selected approver (manager/HR)
+          example: "60d5ecb74b24a1234567890a"
+
+    OvertimeSummary:
+      type: object
+      properties:
+        thisMonthHours:
+          type: number
+          description: Total overtime hours this month
+          example: 24.5
+        thisWeekHours:
+          type: number
+          description: Total overtime hours this week
+          example: 8.0
+        pendingRequests:
+          type: number
+          description: Number of pending requests
+          example: 2
+        approvedRequests:
+          type: number
+          description: Number of approved requests
+          example: 5
+        rejectedRequests:
+          type: number
+          description: Number of rejected requests
+          example: 1
+        totalHoursThisYear:
+          type: number
+          description: Total overtime hours this year
+          example: 120.5
+
+    Approver:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Approver ID
+          example: "60d5ecb74b24a1234567890a"
+        fullname:
+          type: string
+          description: Approver full name
+          example: "Jane Smith"
+        department:
+          type: string
+          description: Approver department
+          example: "Human Resources"
+        position:
+          type: string
+          description: Approver position
+          example: "HR Manager"
+        email:
+          type: string
+          description: Approver email
+          example: "jane.smith@company.com"
+        role:
+          type: object
+          properties:
+            _id:
+              type: string
+            name:
+              type: string
+              example: "hr"
+
+    ApprovalAction:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+          description: Reason for rejection (required for reject action)
+          example: "Insufficient justification for overtime"
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+        data:
+          oneOf:
+            - $ref: "#/components/schemas/OvertimeRequest"
+            - $ref: "#/components/schemas/OvertimeSummary"
+            - type: array
+              items:
+                $ref: "#/components/schemas/OvertimeRequest"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        error:
+          type: string
+          example: "Detailed error information"
+
+    PaginatedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Data retrieved successfully"
+        data:
+          type: object
+          properties:
+            requests:
+              type: array
+              items:
+                $ref: "#/components/schemas/OvertimeRequest"
+            pagination:
+              type: object
+              properties:
+                page:
+                  type: integer
+                  example: 1
+                limit:
+                  type: integer
+                  example: 10
+                total:
+                  type: integer
+                  example: 50
+                totalPages:
+                  type: integer
+                  example: 5
+
+paths:
+  /overtime/summary:
+    get:
+      summary: Get overtime summary for authenticated employee
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Overtime summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OvertimeSummary"
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /overtime/submit:
+    post:
+      summary: Submit a new overtime request
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OvertimeRequestInput"
+            examples:
+              regular_overtime:
+                summary: Regular overtime request
+                value:
+                  date: "2024-01-15"
+                  startTime: "2024-01-15T18:00:00Z"
+                  endTime: "2024-01-15T22:00:00Z"
+                  reason: "Complete urgent project deadline"
+                  type: "regular"
+                  approverId: "60d5ecb74b24a1234567890a"
+              weekend_overtime:
+                summary: Weekend overtime request
+                value:
+                  date: "2024-01-20"
+                  startTime: "2024-01-20T09:00:00Z"
+                  endTime: "2024-01-20T17:00:00Z"
+                  reason: "System maintenance work"
+                  type: "weekend"
+                  approverId: "60d5ecb74b24a1234567890a"
+      responses:
+        "201":
+          description: Overtime request submitted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OvertimeRequest"
+        "400":
+          description: Missing required fields or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /overtime/{requestId}:
+    get:
+      summary: Get overtime request by ID
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: Overtime request ID
+          example: "60d5ecb74b24a1234567890a"
+      responses:
+        "200":
+          description: Overtime request retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OvertimeRequest"
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Overtime request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: Update overtime request
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: Overtime request ID
+          example: "60d5ecb74b24a1234567890a"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OvertimeRequestInput"
+      responses:
+        "200":
+          description: Overtime request updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OvertimeRequest"
+        "400":
+          description: Missing required fields or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Overtime request not found or cannot be updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Cancel overtime request
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: Overtime request ID
+          example: "60d5ecb74b24a1234567890a"
+      responses:
+        "200":
+          description: Overtime request cancelled successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Overtime request not found or cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Admin/HR endpoints
+  /overtime/admin/all:
+    get:
+      summary: Get all overtime requests (Admin/HR only)
+      tags: [Overtime - Admin/HR]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+          description: Filter by status
+      responses:
+        '200':
+          description: All overtime requests retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+        '401':
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /overtime/admin/{requestId}/approve:
+    put:
+      summary: Approve overtime request (Admin/HR only)
+      tags: [Overtime - Admin/HR]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: Overtime request ID
+          example: "60d5ecb74b24a1234567890a"
+      responses:
+        '200':
+          description: Overtime request approved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OvertimeRequest'
+        '401':
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Overtime request not found or already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /overtime/admin/{requestId}/reject:
+    put:
+      summary: Reject overtime request (Admin/HR only)
+      tags: [Overtime - Admin/HR]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+          description: Overtime request ID
+          example: "60d5ecb74b24a1234567890a"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalAction'
+            example:
+              rejectionReason: "Insufficient justification for overtime"
+      responses:
+        '200':
+          description: Overtime request rejected successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OvertimeRequest'
+        '400':
+          description: Rejection reason is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Overtime request not found or already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Overtime - Employee
+    description: Overtime management endpoints for employees
+  - name: Overtime - Admin/HR
+    description: Overtime management endpoints for administrators and HR staff
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+          description: Filter by status
+      responses:
+        "200":
+          description: Overtime history retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/OvertimeRequest"
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /overtime/approvers:
+    get:
+      summary: Get list of available approvers (managers and HR)
+      tags: [Overtime - Employee]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Approvers list retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Approver"
+        "401":
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

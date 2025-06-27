@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overtime API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        body {
+            margin:0;
+            background: #fafafa;
+        }
+        .swagger-ui .topbar {
+            background-color: #2c3e50;
+        }
+        .swagger-ui .topbar .download-url-wrapper .select-label {
+            color: #fff;
+        }
+        .swagger-ui .topbar .download-url-wrapper input[type=text] {
+            border: 2px solid #34495e;
+        }
+        .swagger-ui .topbar .download-url-wrapper .download-url-button {
+            background: #34495e;
+            color: #fff;
+            border: 2px solid #34495e;
+        }
+        .custom-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .custom-header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .custom-header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .auth-info {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px;
+            color: #0c5460;
+        }
+        .auth-info h3 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+        .auth-info code {
+            background: #d1ecf1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .endpoints-summary {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px;
+        }
+        .endpoints-summary h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .endpoint-group {
+            margin-bottom: 20px;
+        }
+        .endpoint-group h4 {
+            color: #666;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .endpoint-list {
+            list-style: none;
+            padding: 0;
+        }
+        .endpoint-list li {
+            padding: 5px 0;
+            border-left: 3px solid #007bff;
+            padding-left: 10px;
+            margin: 5px 0;
+        }
+        .endpoint-list li.post { border-left-color: #28a745; }
+        .endpoint-list li.put { border-left-color: #ffc107; }
+        .endpoint-list li.delete { border-left-color: #dc3545; }
+        .method {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+        .method.get { background: #007bff; color: white; }
+        .method.post { background: #28a745; color: white; }
+        .method.put { background: #ffc107; color: black; }
+        .method.delete { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <div class="custom-header">
+        <h1>🕐 Overtime Management API</h1>
+        <p>Complete API documentation for overtime request management system</p>
+    </div>
+
+    <div class="auth-info">
+        <h3>🔐 Authentication Required</h3>
+        <p>All endpoints require JWT authentication. Include the token in the Authorization header:</p>
+        <code>Authorization: Bearer YOUR_JWT_TOKEN</code>
+        <br><br>
+        <p><strong>How to get your token:</strong></p>
+        <ol>
+            <li>Login via <code>POST /api/auth/login</code> with your credentials</li>
+            <li>Copy the <code>token</code> from the response</li>
+            <li>Click the "Authorize" button below and enter: <code>Bearer YOUR_TOKEN</code></li>
+        </ol>
+    </div>
+
+    <div class="endpoints-summary">
+        <h3>📋 API Endpoints Overview</h3>
+        
+        <div class="endpoint-group">
+            <h4>👤 Employee Endpoints</h4>
+            <ul class="endpoint-list">
+                <li class="get">
+                    <span class="method get">GET</span>
+                    <code>/api/overtime/summary</code> - Get overtime summary
+                </li>
+                <li class="get">
+                    <span class="method get">GET</span>
+                    <code>/api/overtime/history</code> - Get overtime history
+                </li>
+                <li class="get">
+                    <span class="method get">GET</span>
+                    <code>/api/overtime/approvers</code> - Get list of approvers
+                </li>
+                <li class="post">
+                    <span class="method post">POST</span>
+                    <code>/api/overtime/submit</code> - Submit new overtime request
+                </li>
+                <li class="get">
+                    <span class="method get">GET</span>
+                    <code>/api/overtime/{requestId}</code> - Get specific request
+                </li>
+                <li class="put">
+                    <span class="method put">PUT</span>
+                    <code>/api/overtime/{requestId}</code> - Update request
+                </li>
+                <li class="delete">
+                    <span class="method delete">DELETE</span>
+                    <code>/api/overtime/{requestId}</code> - Cancel request
+                </li>
+            </ul>
+        </div>
+
+        <div class="endpoint-group">
+            <h4>👨‍💼 Admin/HR Endpoints</h4>
+            <ul class="endpoint-list">
+                <li class="get">
+                    <span class="method get">GET</span>
+                    <code>/api/overtime/admin/all</code> - Get all requests (with pagination)
+                </li>
+                <li class="put">
+                    <span class="method put">PUT</span>
+                    <code>/api/overtime/admin/{requestId}/approve</code> - Approve request
+                </li>
+                <li class="put">
+                    <span class="method put">PUT</span>
+                    <code>/api/overtime/admin/{requestId}/reject</code> - Reject request
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            // Begin Swagger UI call region
+            const ui = SwaggerUIBundle({
+                url: './overtime-api.yaml',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                validatorUrl: null,
+                tryItOutEnabled: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+                onComplete: function() {
+                    console.log("Swagger UI loaded successfully");
+                },
+                requestInterceptor: function(request) {
+                    // Add any custom headers or modify requests here
+                    console.log("Making request:", request);
+                    return request;
+                },
+                responseInterceptor: function(response) {
+                    // Handle responses here
+                    console.log("Received response:", response);
+                    return response;
+                }
+            });
+            // End Swagger UI call region
+
+            window.ui = ui;
+        };
+    </script>
+</body>
+</html>

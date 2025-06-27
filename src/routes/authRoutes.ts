@@ -5,10 +5,7 @@ import {
   LoginValidator,
 } from "../validators/validate";
 import * as AuthController from "../controllers/authController";
-import {
-  check_authentication,
-  check_authorization,
-} from "../middlewares/authMiddleware";
+import { authenticateToken } from "../middlewares/authMiddleware";
 import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -34,20 +31,20 @@ router.post("/reset-password", AuthController.resetPassword);
 // Route thay đổi mật khẩu
 router.post(
   "/change-password",
-  check_authentication,
+  authenticateToken,
   AuthController.changePassword
 );
 
 // Route lấy thông tin profile
-router.get("/me", check_authentication, AuthController.getUserProfile);
+router.get("/me", authenticateToken, AuthController.getUserProfile);
 
 // Route cập nhật profile
-router.put("/profile", check_authentication, AuthController.updateUserProfile);
+router.put("/profile", authenticateToken, AuthController.updateUserProfile);
 
 // Route upload avatar
 router.post(
   "/upload-avatar",
-  check_authentication,
+  authenticateToken,
   upload.single("avatar"),
   AuthController.uploadAvatar
 );

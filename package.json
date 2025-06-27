@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "HRM and CRM backend with word management",
   "dependencies": {
+    "@types/node-cron": "^3.0.11",
     "axios": "^1.10.0",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.7.0",
@@ -30,6 +31,7 @@
     "mongoose-paginate-v2": "^1.9.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
+    "node-cron": "^4.1.1",
     "nodemailer": "^7.0.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"

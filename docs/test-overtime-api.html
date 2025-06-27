@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Overtime API</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .section h3 {
+            color: #34495e;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button.danger {
+            background: #e74c3c;
+        }
+        button.danger:hover {
+            background: #c0392b;
+        }
+        button.success {
+            background: #27ae60;
+        }
+        button.success:hover {
+            background: #229954;
+        }
+        .response {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .auth-section {
+            background: #e8f6f3;
+            border-left: 4px solid #27ae60;
+        }
+        .employee-section {
+            background: #ebf3fd;
+            border-left: 4px solid #3498db;
+        }
+        .admin-section {
+            background: #fdf2e9;
+            border-left: 4px solid #e67e22;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-approved { background: #d4edda; color: #155724; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕐 Test Overtime API</h1>
+        
+        <!-- Authentication Section -->
+        <div class="section auth-section">
+            <h3>🔐 Xác Thực (Authentication)</h3>
+            <div class="form-group">
+                <label>Base URL:</label>
+                <input type="text" id="baseUrl" value="http://localhost:3000/api" placeholder="http://localhost:3000/api">
+            </div>
+            <div class="form-group">
+                <label>JWT Token:</label>
+                <input type="text" id="token" placeholder="Nhập JWT token sau khi login">
+            </div>
+            <button onclick="testAuth()">Test Authentication</button>
+            <div id="authResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Employee Section -->
+        <div class="section employee-section">
+            <h3>👤 Chức Năng Nhân Viên</h3>
+            
+            <div class="grid">
+                <div>
+                    <h4>Lấy Danh Sách Người Duyệt</h4>
+                    <button onclick="getApprovers()">Get Approvers</button>
+                    <div id="approversResponse" class="response" style="display: none;"></div>
+                </div>
+                
+                <div>
+                    <h4>Xem Tóm Tắt Overtime</h4>
+                    <button onclick="getSummary()">Get Summary</button>
+                    <div id="summaryResponse" class="response" style="display: none;"></div>
+                </div>
+            </div>
+
+            <h4>Gửi Đơn Xin Làm Thêm Giờ</h4>
+            <div class="grid">
+                <div>
+                    <div class="form-group">
+                        <label>Ngày:</label>
+                        <input type="date" id="overtimeDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Giờ bắt đầu:</label>
+                        <input type="datetime-local" id="startTime">
+                    </div>
+                    <div class="form-group">
+                        <label>Giờ kết thúc:</label>
+                        <input type="datetime-local" id="endTime">
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>Loại overtime:</label>
+                        <select id="overtimeType">
+                            <option value="regular">Regular (Thường)</option>
+                            <option value="weekend">Weekend (Cuối tuần)</option>
+                            <option value="holiday">Holiday (Ngày lễ)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Người duyệt (ID):</label>
+                        <input type="text" id="approverId" placeholder="Chọn từ danh sách approvers">
+                    </div>
+                    <div class="form-group">
+                        <label>Lý do:</label>
+                        <textarea id="reason" placeholder="Nhập lý do làm thêm giờ..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <button onclick="submitOvertimeRequest()">Gửi Đơn</button>
+            <div id="submitResponse" class="response" style="display: none;"></div>
+
+            <h4>Xem Lịch Sử Overtime</h4>
+            <div class="grid">
+                <div>
+                    <div class="form-group">
+                        <label>Trang:</label>
+                        <input type="number" id="page" value="1" min="1">
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>Trạng thái:</label>
+                        <select id="statusFilter">
+                            <option value="">Tất cả</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <button onclick="getHistory()">Get History</button>
+            <div id="historyResponse" class="response" style="display: none;"></div>
+        </div>
+
+        <!-- Admin Section -->
+        <div class="section admin-section">
+            <h3>👨‍💼 Chức Năng Admin/HR</h3>
+            
+            <h4>Xem Tất Cả Đơn</h4>
+            <button onclick="getAllRequests()">Get All Requests</button>
+            <div id="allRequestsResponse" class="response" style="display: none;"></div>
+
+            <h4>Duyệt/Từ Chối Đơn</h4>
+            <div class="grid">
+                <div>
+                    <div class="form-group">
+                        <label>Request ID:</label>
+                        <input type="text" id="requestId" placeholder="Nhập ID của đơn cần xử lý">
+                    </div>
+                    <button class="success" onclick="approveRequest()">Duyệt Đơn</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>Lý do từ chối:</label>
+                        <textarea id="rejectionReason" placeholder="Nhập lý do từ chối..."></textarea>
+                    </div>
+                    <button class="danger" onclick="rejectRequest()">Từ Chối Đơn</button>
+                </div>
+            </div>
+            <div id="actionResponse" class="response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        function getHeaders() {
+            const token = document.getElementById('token').value;
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
+        }
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value;
+        }
+
+        function showResponse(elementId, data) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function makeRequest(url, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: getHeaders()
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                return {
+                    status: response.status,
+                    data: data
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    data: { error: error.message }
+                };
+            }
+        }
+
+        // Authentication
+        async function testAuth() {
+            const result = await makeRequest(`${getBaseUrl()}/overtime/summary`);
+            showResponse('authResponse', result);
+        }
+
+        // Employee functions
+        async function getApprovers() {
+            const result = await makeRequest(`${getBaseUrl()}/overtime/approvers`);
+            showResponse('approversResponse', result);
+        }
+
+        async function getSummary() {
+            const result = await makeRequest(`${getBaseUrl()}/overtime/summary`);
+            showResponse('summaryResponse', result);
+        }
+
+        async function submitOvertimeRequest() {
+            const body = {
+                date: document.getElementById('overtimeDate').value,
+                startTime: new Date(document.getElementById('startTime').value).toISOString(),
+                endTime: new Date(document.getElementById('endTime').value).toISOString(),
+                reason: document.getElementById('reason').value,
+                type: document.getElementById('overtimeType').value,
+                approverId: document.getElementById('approverId').value || null
+            };
+
+            const result = await makeRequest(`${getBaseUrl()}/overtime/submit`, 'POST', body);
+            showResponse('submitResponse', result);
+        }
+
+        async function getHistory() {
+            const page = document.getElementById('page').value;
+            const status = document.getElementById('statusFilter').value;
+            let url = `${getBaseUrl()}/overtime/history?page=${page}&limit=10`;
+            if (status) url += `&status=${status}`;
+
+            const result = await makeRequest(url);
+            showResponse('historyResponse', result);
+        }
+
+        // Admin functions
+        async function getAllRequests() {
+            const result = await makeRequest(`${getBaseUrl()}/overtime/admin/all?page=1&limit=20`);
+            showResponse('allRequestsResponse', result);
+        }
+
+        async function approveRequest() {
+            const requestId = document.getElementById('requestId').value;
+            if (!requestId) {
+                alert('Vui lòng nhập Request ID');
+                return;
+            }
+
+            const result = await makeRequest(`${getBaseUrl()}/overtime/admin/${requestId}/approve`, 'PUT');
+            showResponse('actionResponse', result);
+        }
+
+        async function rejectRequest() {
+            const requestId = document.getElementById('requestId').value;
+            const rejectionReason = document.getElementById('rejectionReason').value;
+            
+            if (!requestId) {
+                alert('Vui lòng nhập Request ID');
+                return;
+            }
+            if (!rejectionReason) {
+                alert('Vui lòng nhập lý do từ chối');
+                return;
+            }
+
+            const body = { rejectionReason };
+            const result = await makeRequest(`${getBaseUrl()}/overtime/admin/${requestId}/reject`, 'PUT', body);
+            showResponse('actionResponse', result);
+        }
+
+        // Initialize with current date/time
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            document.getElementById('overtimeDate').value = today;
+            
+            // Set default start time to 6 PM today
+            const startTime = new Date(now);
+            startTime.setHours(18, 0, 0, 0);
+            document.getElementById('startTime').value = startTime.toISOString().slice(0, 16);
+            
+            // Set default end time to 10 PM today
+            const endTime = new Date(now);
+            endTime.setHours(22, 0, 0, 0);
+            document.getElementById('endTime').value = endTime.toISOString().slice(0, 16);
+        });
+    </script>
+</body>
+</html>

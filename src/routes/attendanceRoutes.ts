@@ -2,7 +2,7 @@ import { getMonthSummary } from "./../services/attendanceService";
 import * as attendanceController from "../controllers/attendanceController";
 import { Router } from "express";
 import {
-  check_authentication,
+  authenticateToken,
   check_authorization,
 } from "../middlewares/authMiddleware";
 import multer from "multer";
@@ -13,19 +13,19 @@ const router = Router();
 router.post(
   "/check-in",
   upload.single("image"),
-  check_authentication,
+  authenticateToken,
   attendanceController.checkIn
 );
 router.post(
   "/check-out",
   upload.single("image"),
-  check_authentication,
+  authenticateToken,
   attendanceController.checkOut
 );
 
 router.get(
   "/users-dropdown",
-  check_authentication,
+  authenticateToken,
   check_authorization(["admin"]),
   attendanceController.getUsersForDropdown
 );
@@ -33,7 +33,7 @@ router.get(
 // Route upload ảnh khuôn mặt (chỉ admin)
 router.post(
   "/upload-face/:userId",
-  check_authentication,
+  authenticateToken,
   check_authorization(["admin"]),
   upload.single("image"),
   attendanceController.uploadEmployeeFace
@@ -41,31 +41,31 @@ router.post(
 
 router.get(
   "/check-status",
-  check_authentication,
+  authenticateToken,
   attendanceController.checkAttendanceStatus
 );
 
 router.get(
   "/today-summary",
-  check_authentication,
+  authenticateToken,
   attendanceController.getTodaySummary
 );
 router.get(
   "/summary/week",
-  check_authentication,
+  authenticateToken,
   attendanceController.getWeekSummary
 );
 
 router.get(
   "/summary/month",
-  check_authentication,
+  authenticateToken,
   attendanceController.getMonthSummary
 );
 
 router.get(
   "/monthly-details",
-  check_authentication,
+  authenticateToken,
   attendanceController.getMonthlyDetails
 );
-router.get("/history", check_authentication, attendanceController.getHistory);
+router.get("/history", authenticateToken, attendanceController.getHistory);
 export default router;

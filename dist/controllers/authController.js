@@ -1,27 +1,47 @@
-import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import * as AuthService from "../services/authService";
-import {
-  CreateSuccessResponse,
-  CreateErrorResponse,
-  CreateCookieResponse,
-} from "../utils/responseHandler";
-
-import multer from "multer";
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-interface RegisterRequestBody {
-  email: string;
-  password: string;
-  fullname: string;
-}
-
-interface LoginRequestBody {
-  email: string;
-  password: string;
-}
-
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.logout = exports.uploadAvatar = exports.updateUserProfile = exports.getUserProfile = exports.changePassword = exports.resetPassword = exports.forgotPassword = exports.verifyOtp = exports.login = exports.register = void 0;
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const AuthService = __importStar(require("../services/authService"));
+const responseHandler_1 = require("../utils/responseHandler");
+const multer_1 = __importDefault(require("multer"));
+const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 /**
  * @swagger
  * /api/auth/register:
@@ -80,29 +100,25 @@ interface LoginRequestBody {
  *       400:
  *         description: Bad request
  */
-export const register = async (req: Request, res: Response) => {
-  try {
-    const { email, password, fullname } = req.body as RegisterRequestBody;
-    const role = "user";
-    const userData = await AuthService.CreateAnUser(
-      email,
-      password,
-      fullname,
-      role
-    );
-    return CreateSuccessResponse(res, 201, {
-      user: { id: userData._id, email, fullname, role },
-    });
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+const register = async (req, res) => {
+    try {
+        const { email, password, fullname } = req.body;
+        const role = "user";
+        const userData = await AuthService.CreateAnUser(email, password, fullname, role);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 201, {
+            user: { id: userData._id, email, fullname, role },
+        });
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.register = register;
 /**
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Đăng nhập người dùng
+ *     summary: Login a user
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -114,43 +130,19 @@ export const register = async (req: Request, res: Response) => {
  *               - email
  *               - password
  *             properties:
- *               accountType:
- *                 type: string
- *                 enum: [admin, user]
- *                 description: Chọn loại tài khoản để test nhanh
- *                 example: admin
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Địa chỉ email của người dùng
+ *                 description: User's email address
  *                 example: admin@gmail.com
- *                 enum:
- *                   - admin@gmail.com
- *                   - user1@gmail.com
  *               password:
  *                 type: string
  *                 format: password
- *                 description: Mật khẩu của người dùng
+ *                 description: User's password
  *                 example: Admin123!
- *                 enum:
- *                   - Admin123!
- *                   - User123!
- *           examples:
- *             admin:
- *               summary: Tài khoản Admin
- *               value:
- *                 accountType: admin
- *                 email: admin@gmail.com
- *                 password: Admin123!
- *             user:
- *               summary: Tài khoản User
- *               value:
- *                 accountType: user
- *                 email: user1@gmail.com
- *                 password: User123!
  *     responses:
  *       200:
- *         description: Đăng nhập thành công
+ *         description: User logged in successfully
  *         content:
  *           application/json:
  *             schema:
@@ -169,31 +161,31 @@ export const register = async (req: Request, res: Response) => {
  *           Set-Cookie:
  *             schema:
  *               type: string
- *               description: JWT token được set trong cookie
+ *               description: JWT token set in cookie
  *               example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Path=/; Max-Age=3600
  *       400:
- *         description: Yêu cầu không hợp lệ
+ *         description: Bad request
  */
-export const login = async (req: Request, res: Response) => {
-  try {
-    console.log("Login attempt:", req.body);
-    const { email, password } = req.body as LoginRequestBody;
-    console.log("Checking login for:", email);
-
-    const user = await AuthService.CheckLogin(email, password);
-    console.log("Login successful for user:", user._id);
-
-    const exp = Date.now() + 60 * 60 * 1000; // 1 hour
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET!, {
-      expiresIn: "1h",
-    });
-    CreateCookieResponse(res, "token", token, exp);
-    return CreateSuccessResponse(res, 200, { token, user });
-  } catch (error: any) {
-    console.error("Login error:", error.message);
-    return CreateErrorResponse(res, 400, error.message);
-  }
+const login = async (req, res) => {
+    try {
+        console.log("Login attempt:", req.body);
+        const { email, password } = req.body;
+        console.log("Checking login for:", email);
+        const user = await AuthService.CheckLogin(email, password);
+        console.log("Login successful for user:", user._id);
+        const exp = Date.now() + 60 * 60 * 1000; // 1 hour
+        const token = jsonwebtoken_1.default.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: "1h",
+        });
+        (0, responseHandler_1.CreateCookieResponse)(res, "token", token, exp);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, { token, user });
+    }
+    catch (error) {
+        console.error("Login error:", error.message);
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
+exports.login = login;
 /**
  * @swagger
  * /api/auth/verify-otp:
@@ -231,16 +223,17 @@ export const login = async (req: Request, res: Response) => {
  *       400:
  *         description: Invalid or expired OTP.
  */
-export const verifyOtp = async (req: Request, res: Response) => {
-  try {
-    const { otp } = req.body;
-    const resetToken = await AuthService.VerifyOtpAndGenerateResetToken(otp);
-    return CreateSuccessResponse(res, 200, { resetToken });
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+const verifyOtp = async (req, res) => {
+    try {
+        const { otp } = req.body;
+        const resetToken = await AuthService.VerifyOtpAndGenerateResetToken(otp);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, { resetToken });
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.verifyOtp = verifyOtp;
 /**
  * @swagger
  * /api/auth/forgot-password:
@@ -265,19 +258,19 @@ export const verifyOtp = async (req: Request, res: Response) => {
  *       400:
  *         description: Bad request or email not found.
  */
-export const forgotPassword = async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-    await AuthService.ForgotPassword(email);
-    return CreateSuccessResponse(res, 200, {
-      message:
-        "If your email is registered, you will receive a password reset OTP.",
-    });
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        await AuthService.ForgotPassword(email);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+            message: "If your email is registered, you will receive a password reset OTP.",
+        });
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.forgotPassword = forgotPassword;
 /**
  * @swagger
  * /api/auth/reset-password:
@@ -306,18 +299,19 @@ export const forgotPassword = async (req: Request, res: Response) => {
  *       400:
  *         description: Invalid or expired reset token.
  */
-export const resetPassword = async (req: Request, res: Response) => {
-  try {
-    const { resetToken, newPassword } = req.body;
-    await AuthService.ResetPasswordWithToken(resetToken, newPassword);
-    return CreateSuccessResponse(res, 200, {
-      message: "Password has been reset successfully.",
-    });
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+const resetPassword = async (req, res) => {
+    try {
+        const { resetToken, newPassword } = req.body;
+        await AuthService.ResetPasswordWithToken(resetToken, newPassword);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+            message: "Password has been reset successfully.",
+        });
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.resetPassword = resetPassword;
 /**
  * @swagger
  * /api/auth/change-password:
@@ -350,28 +344,23 @@ export const resetPassword = async (req: Request, res: Response) => {
  *       401:
  *         description: Unauthorized.
  */
-export const changePassword = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const { oldPassword, newPassword } = req.body;
-
-    if (!userId) {
-      return CreateErrorResponse(
-        res,
-        401,
-        "Unauthorized: User ID not found in token."
-      );
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { oldPassword, newPassword } = req.body;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized: User ID not found in token.");
+        }
+        await AuthService.ChangePassword(userId, oldPassword, newPassword);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+            message: "Password changed successfully.",
+        });
     }
-
-    await AuthService.ChangePassword(userId, oldPassword, newPassword);
-    return CreateSuccessResponse(res, 200, {
-      message: "Password changed successfully.",
-    });
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.changePassword = changePassword;
 /**
  * @swagger
  * /api/auth/me:
@@ -408,25 +397,20 @@ export const changePassword = async (req: Request, res: Response) => {
  *       401:
  *         description: Unauthorized
  */
-export const getUserProfile = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-
-    if (!userId) {
-      return CreateErrorResponse(
-        res,
-        401,
-        "Unauthorized: User ID not found in token."
-      );
+const getUserProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized: User ID not found in token.");
+        }
+        const user = await AuthService.GetUserProfile(userId);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, user);
     }
-
-    const user = await AuthService.GetUserProfile(userId);
-    return CreateSuccessResponse(res, 200, user);
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.getUserProfile = getUserProfile;
 /**
  * @swagger
  * /api/auth/profile:
@@ -458,34 +442,28 @@ export const getUserProfile = async (req: Request, res: Response) => {
  *       401:
  *         description: Unauthorized
  */
-export const updateUserProfile = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const { fullname, email, phone, avatar, department, position } = req.body;
-
-    if (!userId) {
-      return CreateErrorResponse(
-        res,
-        401,
-        "Unauthorized: User ID not found in token."
-      );
+const updateUserProfile = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { fullname, email, phone, avatar, department, position } = req.body;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized: User ID not found in token.");
+        }
+        const updatedUser = await AuthService.UpdateUserProfile(userId, {
+            fullname,
+            email,
+            phone,
+            avatar,
+            department,
+            position,
+        });
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, updatedUser);
     }
-
-    const updatedUser = await AuthService.UpdateUserProfile(userId, {
-      fullname,
-      email,
-      phone,
-      avatar,
-      department,
-      position,
-    });
-
-    return CreateSuccessResponse(res, 200, updatedUser);
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
+    }
 };
-
+exports.updateUserProfile = updateUserProfile;
 /**
  * @swagger
  * /api/auth/upload-avatar:
@@ -524,33 +502,23 @@ export const updateUserProfile = async (req: Request, res: Response) => {
  *       401:
  *         description: Unauthorized
  */
-export const uploadAvatar = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-
-    if (!userId) {
-      return CreateErrorResponse(
-        res,
-        401,
-        "Unauthorized: User ID not found in token."
-      );
+const uploadAvatar = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized: User ID not found in token.");
+        }
+        if (!req.file) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "No image file provided");
+        }
+        const avatarUrl = await AuthService.UploadUserAvatar(userId, req.file.buffer);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, { avatarUrl });
     }
-
-    if (!req.file) {
-      return CreateErrorResponse(res, 400, "No image file provided");
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 400, error.message);
     }
-
-    const avatarUrl = await AuthService.UploadUserAvatar(
-      userId,
-      req.file.buffer
-    );
-
-    return CreateSuccessResponse(res, 200, { avatarUrl });
-  } catch (error: any) {
-    return CreateErrorResponse(res, 400, error.message);
-  }
 };
-
+exports.uploadAvatar = uploadAvatar;
 /**
  * @swagger
  * /api/auth/logout:
@@ -561,12 +529,13 @@ export const uploadAvatar = async (req: Request, res: Response) => {
  *       200:
  *         description: User logged out successfully by clearing the cookie.
  */
-export const logout = (req: Request, res: Response) => {
-  res.cookie("token", "", {
-    httpOnly: true,
-    expires: new Date(0),
-  });
-  return CreateSuccessResponse(res, 200, {
-    message: "Logged out successfully",
-  });
+const logout = (req, res) => {
+    res.cookie("token", "", {
+        httpOnly: true,
+        expires: new Date(0),
+    });
+    return (0, responseHandler_1.CreateSuccessResponse)(res, 200, {
+        message: "Logged out successfully",
+    });
 };
+exports.logout = logout;

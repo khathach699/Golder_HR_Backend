@@ -8,7 +8,7 @@ interface JwtPayload {
   id: string;
 }
 
-export const check_authentication = async (
+export const authenticateToken = async (
   req: Request,
   res: Response,
   next: NextFunction
