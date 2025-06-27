@@ -96,30 +96,57 @@ export class OvertimeService {
 
     const skip = (page - 1) * limit;
 
-    return await OvertimeRequest.find(query)
+    const populatedRequests = await OvertimeRequest.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("approvedBy", "name")
+      .populate("approvedBy", "name fullname")
+      .populate("assignedApproverId", "name fullname")
       .exec();
+
+    console.log(
+      "🔍 [SERVICE] Sample populated request:",
+      JSON.stringify(populatedRequests[0], null, 2)
+    );
+
+    return populatedRequests;
   }
 
   static async submitOvertimeRequest(
     employeeId: string,
     requestData: OvertimeRequestData
   ): Promise<IOvertimeRequest> {
+    console.log("🔍 [SERVICE] submitOvertimeRequest called");
+    console.log("🔍 [SERVICE] Employee ID:", employeeId);
+    console.log(
+      "🔍 [SERVICE] Request data:",
+      JSON.stringify(requestData, null, 2)
+    );
+
     // Get employee info
     const employee = await User.findById(employeeId);
+    console.log(
+      "🔍 [SERVICE] Employee found:",
+      employee ? employee.fullname : "Not found"
+    );
+
     if (!employee) {
+      console.log("❌ [SERVICE] Employee not found");
       throw new Error("Employee not found");
     }
 
     // Validate dates
+    console.log("🔍 [SERVICE] Validating dates...");
+    console.log("🔍 [SERVICE] Start time:", requestData.startTime);
+    console.log("🔍 [SERVICE] End time:", requestData.endTime);
+
     if (requestData.endTime <= requestData.startTime) {
+      console.log("❌ [SERVICE] End time must be after start time");
       throw new Error("End time must be after start time");
     }
 
     // Check for overlapping requests on the same date
+    console.log("🔍 [SERVICE] Checking for existing requests...");
     const existingRequest = await OvertimeRequest.findOne({
       employeeId,
       date: {
@@ -137,16 +164,27 @@ export class OvertimeService {
       status: { $in: ["pending", "approved"] },
     });
 
+    console.log(
+      "🔍 [SERVICE] Existing request:",
+      existingRequest ? "Found" : "Not found"
+    );
+
     if (existingRequest) {
+      console.log(
+        "❌ [SERVICE] You already have an overtime request for this date"
+      );
       throw new Error("You already have an overtime request for this date");
     }
 
     // Calculate hours
+    console.log("🔍 [SERVICE] Calculating hours...");
     const diffMs =
       requestData.endTime.getTime() - requestData.startTime.getTime();
     const hours = diffMs / (1000 * 60 * 60);
+    console.log("🔍 [SERVICE] Calculated hours:", hours);
 
     // Create overtime request
+    console.log("🔍 [SERVICE] Creating overtime request...");
     const overtimeRequest = new OvertimeRequest({
       employeeId,
       employeeName: employee.fullname,
@@ -160,7 +198,9 @@ export class OvertimeService {
       assignedApproverId: requestData.approverId || null,
     });
 
+    console.log("🔍 [SERVICE] Saving overtime request...");
     const savedRequest = await overtimeRequest.save();
+    console.log("✅ [SERVICE] Overtime request saved successfully");
 
     // Send notification to HR/managers
     // TODO: Implement overtime notification methods
@@ -225,7 +265,9 @@ export class OvertimeService {
     return await OvertimeRequest.findOne({
       _id: requestId,
       employeeId,
-    }).populate("approvedBy", "name");
+    })
+      .populate("approvedBy", "name fullname")
+      .populate("assignedApproverId", "name fullname");
   }
 
   // Admin/HR methods
@@ -288,26 +330,74 @@ export class OvertimeService {
     limit: number = 10,
     status?: string
   ): Promise<{ requests: IOvertimeRequest[]; total: number }> {
-    const query: any = {};
+    try {
+      console.log(
+        `🔍 [SERVICE] getAllOvertimeRequests called with page: ${page}, limit: ${limit}, status: ${status}`
+      );
 
-    if (status && ["pending", "approved", "rejected"].includes(status)) {
-      query.status = status;
+      const query: any = {};
+
+      if (status && ["pending", "approved", "rejected"].includes(status)) {
+        query.status = status;
+      }
+
+      console.log(`🔍 [SERVICE] Query:`, query);
+
+      const skip = (page - 1) * limit;
+
+      // First, let's check if there are any documents with invalid ObjectIds
+      const allDocs = await OvertimeRequest.find({}).lean();
+      console.log(
+        `🔍 [SERVICE] Total documents in collection: ${allDocs.length}`
+      );
+
+      // Check for invalid ObjectIds
+      const invalidDocs = allDocs.filter((doc) => {
+        try {
+          // Check if _id is a valid ObjectId
+          if (typeof doc._id === "string" && doc._id.length !== 24) {
+            return true;
+          }
+          return false;
+        } catch (error) {
+          return true;
+        }
+      });
+
+      if (invalidDocs.length > 0) {
+        console.log(
+          `❌ [SERVICE] Found ${invalidDocs.length} documents with invalid ObjectIds:`,
+          invalidDocs
+        );
+        // Clean up invalid documents
+        for (const doc of invalidDocs) {
+          await OvertimeRequest.deleteOne({ _id: doc._id });
+          console.log(
+            `🗑️ [SERVICE] Deleted invalid document with _id: ${doc._id}`
+          );
+        }
+      }
+
+      const [requests, total] = await Promise.all([
+        OvertimeRequest.find(query)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .populate("employeeId", "name email")
+          .populate("approvedBy", "name fullname")
+          .populate("assignedApproverId", "name fullname")
+          .exec(),
+        OvertimeRequest.countDocuments(query),
+      ]);
+
+      console.log(
+        `🔍 [SERVICE] Found ${requests.length} requests, total: ${total}`
+      );
+      return { requests, total };
+    } catch (error) {
+      console.error(`❌ [SERVICE] Error in getAllOvertimeRequests:`, error);
+      throw error;
     }
-
-    const skip = (page - 1) * limit;
-
-    const [requests, total] = await Promise.all([
-      OvertimeRequest.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("employeeId", "name email")
-        .populate("approvedBy", "name")
-        .exec(),
-      OvertimeRequest.countDocuments(query),
-    ]);
-
-    return { requests, total };
   }
 
   static async getApprovers(): Promise<any[]> {

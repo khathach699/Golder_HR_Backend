@@ -11,7 +11,10 @@ import {
   rejectOvertimeRequest,
   getAllOvertimeRequests,
 } from "../controllers/overtimeController";
-import { authenticateToken } from "../middlewares/authMiddleware";
+import {
+  authenticateToken,
+  check_authorization,
+} from "../middlewares/authMiddleware";
 import { validateOvertimeRequest } from "../validators/overtimeValidator";
 
 const router = Router();
@@ -35,16 +38,37 @@ router.put(
 router.delete("/:requestId", authenticateToken, cancelOvertimeRequest);
 router.get("/:requestId", authenticateToken, getOvertimeRequestById);
 
+// Debug route to test authorization
+router.get("/admin/debug", authenticateToken, (req: any, res: any) => {
+  console.log("🔍 [DEBUG] User object:", JSON.stringify(req.user, null, 2));
+  res.json({
+    success: true,
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role,
+      roleName: req.user.role?.name,
+    },
+  });
+});
+
 // Admin/HR routes
-router.get("/admin/all", authenticateToken, getAllOvertimeRequests);
+router.get(
+  "/admin/all",
+  authenticateToken,
+  check_authorization(["admin", "hr", "manager"]),
+  getAllOvertimeRequests
+);
 router.put(
   "/admin/:requestId/approve",
   authenticateToken,
+  check_authorization(["admin", "hr", "manager"]),
   approveOvertimeRequest
 );
 router.put(
   "/admin/:requestId/reject",
   authenticateToken,
+  check_authorization(["admin", "hr", "manager"]),
   rejectOvertimeRequest
 );
 
