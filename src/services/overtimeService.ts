@@ -104,11 +104,6 @@ export class OvertimeService {
       .populate("assignedApproverId", "name fullname")
       .exec();
 
-    console.log(
-      "🔍 [SERVICE] Sample populated request:",
-      JSON.stringify(populatedRequests[0], null, 2)
-    );
-
     return populatedRequests;
   }
 
@@ -116,32 +111,14 @@ export class OvertimeService {
     employeeId: string,
     requestData: OvertimeRequestData
   ): Promise<IOvertimeRequest> {
-    console.log("🔍 [SERVICE] submitOvertimeRequest called");
-    console.log("🔍 [SERVICE] Employee ID:", employeeId);
-    console.log(
-      "🔍 [SERVICE] Request data:",
-      JSON.stringify(requestData, null, 2)
-    );
-
     // Get employee info
     const employee = await User.findById(employeeId);
-    console.log(
-      "🔍 [SERVICE] Employee found:",
-      employee ? employee.fullname : "Not found"
-    );
-
     if (!employee) {
-      console.log("❌ [SERVICE] Employee not found");
       throw new Error("Employee not found");
     }
 
     // Validate dates
-    console.log("🔍 [SERVICE] Validating dates...");
-    console.log("🔍 [SERVICE] Start time:", requestData.startTime);
-    console.log("🔍 [SERVICE] End time:", requestData.endTime);
-
     if (requestData.endTime <= requestData.startTime) {
-      console.log("❌ [SERVICE] End time must be after start time");
       throw new Error("End time must be after start time");
     }
 

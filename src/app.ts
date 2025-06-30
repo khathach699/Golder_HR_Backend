@@ -14,6 +14,7 @@ import { CreateErrorResponse } from "./utils/responseHandler";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import NotificationScheduler from "./services/notificationScheduler";
+import { LeaveService } from "./services/leaveService";
 
 const PORT = process.env.PORT || 3000;
 const MONGO_URL = process.env.MONGO_URL;
@@ -113,6 +114,13 @@ const initializeApp = async () => {
     res.locals.error = process.env.NODE_ENV === "development" ? err : {};
     CreateErrorResponse(res, err.status || 500, err.message);
   });
+
+  // Initialize leave policies
+  try {
+    await LeaveService.initializeLeavePolicies();
+  } catch (error) {
+    console.error("❌ Error initializing leave policies:", error);
+  }
 
   // Start notification scheduler
   const notificationScheduler = NotificationScheduler.getInstance();

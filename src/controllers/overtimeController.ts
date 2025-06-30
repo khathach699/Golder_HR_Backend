@@ -290,30 +290,15 @@ export const getOvertimeHistory = async (req: Request, res: Response) => {
  */
 export const submitOvertimeRequest = async (req: Request, res: Response) => {
   try {
-    console.log("🔍 [SUBMIT] submitOvertimeRequest called");
-    console.log("🔍 [SUBMIT] Request body:", JSON.stringify(req.body, null, 2));
-
     const employeeId = req.user?._id;
-    console.log("🔍 [SUBMIT] Employee ID:", employeeId);
-
     if (!employeeId) {
-      console.log("❌ [SUBMIT] User not authenticated");
       return CreateErrorResponse(res, 401, "User not authenticated");
     }
 
     const { date, startTime, endTime, reason, type, approverId } = req.body;
-    console.log("🔍 [SUBMIT] Extracted fields:", {
-      date,
-      startTime,
-      endTime,
-      reason,
-      type,
-      approverId,
-    });
 
     // Validate required fields
     if (!date || !startTime || !endTime || !reason) {
-      console.log("❌ [SUBMIT] Missing required fields");
       return CreateErrorResponse(res, 400, "Missing required fields");
     }
 
@@ -325,16 +310,11 @@ export const submitOvertimeRequest = async (req: Request, res: Response) => {
       type: type || "regular",
       approverId: approverId || null,
     };
-    console.log(
-      "🔍 [SUBMIT] Request data:",
-      JSON.stringify(requestData, null, 2)
-    );
 
     const overtimeRequest = await OvertimeService.submitOvertimeRequest(
       employeeId,
       requestData
     );
-    console.log("✅ [SUBMIT] Overtime request submitted successfully");
     return CreateSuccessResponse(
       res,
       201,
@@ -342,9 +322,6 @@ export const submitOvertimeRequest = async (req: Request, res: Response) => {
       overtimeRequest
     );
   } catch (error: any) {
-    console.error("❌ [SUBMIT] Error:", error);
-    console.error("❌ [SUBMIT] Error message:", error.message);
-    console.error("❌ [SUBMIT] Error stack:", error.stack);
     return CreateErrorResponse(
       res,
       500,
@@ -534,12 +511,8 @@ export const cancelOvertimeRequest = async (req: Request, res: Response) => {
  */
 export const getApprovers = async (req: Request, res: Response) => {
   try {
-    console.log(`🔍 [CONTROLLER] getApprovers called`);
-    console.log(`🔍 [CONTROLLER] req.user:`, req.user);
     const employeeId = req.user?._id;
-    console.log(`🔍 [CONTROLLER] employeeId: ${employeeId}`);
     if (!employeeId) {
-      console.log(`❌ [CONTROLLER] No employeeId found`);
       return CreateErrorResponse(res, 401, "User not authenticated");
     }
 
@@ -767,9 +740,7 @@ export const approveOvertimeRequest = async (req: Request, res: Response) => {
 
     // Check if user has admin/HR role
     const userRole = req.user?.role?.name;
-    console.log(`🔍 [APPROVE] User role: ${userRole}`);
     if (userRole !== "admin" && userRole !== "hr" && userRole !== "manager") {
-      console.log(`❌ [APPROVE] Access denied for role: ${userRole}`);
       return CreateErrorResponse(res, 403, "Insufficient permissions");
     }
 
@@ -980,9 +951,7 @@ export const rejectOvertimeRequest = async (req: Request, res: Response) => {
 
     // Check if user has admin/HR role
     const userRole = req.user?.role?.name;
-    console.log(`🔍 [REJECT] User role: ${userRole}`);
     if (userRole !== "admin" && userRole !== "hr" && userRole !== "manager") {
-      console.log(`❌ [REJECT] Access denied for role: ${userRole}`);
       return CreateErrorResponse(res, 403, "Insufficient permissions");
     }
 
@@ -1016,20 +985,12 @@ export const rejectOvertimeRequest = async (req: Request, res: Response) => {
 
 export const getAllOvertimeRequests = async (req: Request, res: Response) => {
   try {
-    console.log(`🔍 [CONTROLLER] getAllOvertimeRequests called`);
-    console.log(`🔍 [CONTROLLER] User role:`, req.user?.role);
-    console.log(`🔍 [CONTROLLER] Query params:`, req.query);
-
     // Authorization is already handled by middleware, no need to check again
     // The middleware check_authorization already verified the user has admin/hr/manager role
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const status = req.query.status as string;
-
-    console.log(
-      `🔍 [CONTROLLER] Calling service with page: ${page}, limit: ${limit}, status: ${status}`
-    );
 
     const result = await OvertimeService.getAllOvertimeRequests(
       page,

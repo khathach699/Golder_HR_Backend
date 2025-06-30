@@ -776,3 +776,139 @@ export const getMonthlyDetails = async (req: Request, res: Response) => {
     return CreateErrorResponse(res, 500, error.message);
   }
 };
+
+/**
+ * @swagger
+ * /api/attendance/daily-details:
+ *   get:
+ *     summary: Get detailed attendance information for a specific day
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: workDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: "2024-06-15"
+ *         description: The work date to get details for (YYYY-MM-DD format)
+ *     responses:
+ *       200:
+ *         description: Detailed attendance information for the specified day
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     workDate:
+ *                       type: string
+ *                       example: "2024-06-15"
+ *                     status:
+ *                       type: string
+ *                       example: "PRESENT"
+ *                     sessions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           sessionNumber:
+ *                             type: integer
+ *                             example: 1
+ *                           checkIn:
+ *                             type: object
+ *                             properties:
+ *                               time:
+ *                                 type: string
+ *                                 example: "8:30 AM"
+ *                               fullTime:
+ *                                 type: string
+ *                                 format: date-time
+ *                               location:
+ *                                 type: string
+ *                                 example: "Office Building"
+ *                               imageUrl:
+ *                                 type: string
+ *                           checkOut:
+ *                             type: object
+ *                             nullable: true
+ *                             properties:
+ *                               time:
+ *                                 type: string
+ *                                 example: "5:30 PM"
+ *                               fullTime:
+ *                                 type: string
+ *                                 format: date-time
+ *                               location:
+ *                                 type: string
+ *                                 example: "Office Building"
+ *                               imageUrl:
+ *                                 type: string
+ *                           duration:
+ *                             type: string
+ *                             example: "8h 30m"
+ *                           status:
+ *                             type: string
+ *                             example: "Completed"
+ *                     totalSessions:
+ *                       type: integer
+ *                       example: 2
+ *                     overallTotalHours:
+ *                       type: string
+ *                       example: "8h 30m"
+ *                     overallOvertime:
+ *                       type: string
+ *                       example: "0h 30m"
+ *       400:
+ *         description: Bad Request - Invalid or missing workDate
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+export const getDailyAttendanceDetails = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return CreateErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const workDate = req.query.workDate as string;
+    if (!workDate) {
+      return CreateErrorResponse(
+        res,
+        400,
+        "workDate is required in YYYY-MM-DD format"
+      );
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(workDate)) {
+      return CreateErrorResponse(
+        res,
+        400,
+        "Invalid date format. Use YYYY-MM-DD format"
+      );
+    }
+
+    const data = await AttendanceService.getDailyAttendanceDetails(
+      userId,
+      workDate
+    );
+
+    return CreateSuccessResponse(res, 200, data);
+  } catch (error: any) {
+    return CreateErrorResponse(res, 500, error.message);
+  }
+};

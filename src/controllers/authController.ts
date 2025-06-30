@@ -126,7 +126,7 @@ export const register = async (req: Request, res: Response) => {
  *                 example: admin@gmail.com
  *                 enum:
  *                   - admin@gmail.com
- *                   - user1@gmail.com
+ *                   - test@gmail.com
  *               password:
  *                 type: string
  *                 format: password
@@ -146,8 +146,8 @@ export const register = async (req: Request, res: Response) => {
  *               summary: Tài khoản User
  *               value:
  *                 accountType: user
- *                 email: user1@gmail.com
- *                 password: User123!
+ *                 email: test@gmail.com
+ *                 password: Test123!
  *     responses:
  *       200:
  *         description: Đăng nhập thành công

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Node.js Backend Application Only
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: golder_hr_backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Sử dụng MongoDB Atlas từ .env
+      - MONGO_URL=${MONGO_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_PRIVATE_KEY_ID=${FIREBASE_PRIVATE_KEY_ID}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+      - FIREBASE_CLIENT_ID=${FIREBASE_CLIENT_ID}
+      - PYTHON_API_URL=${PYTHON_API_URL}
+    env_file:
+      - .env
+    volumes:
+      - uploads_data:/app/uploads
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  uploads_data:
+    driver: local

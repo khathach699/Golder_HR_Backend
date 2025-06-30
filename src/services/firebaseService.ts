@@ -6,17 +6,49 @@ class FirebaseService {
   private app: admin.app.App;
 
   private constructor() {
-    // Khởi tạo Firebase Admin SDK với thông tin từ environment variables
-    const serviceAccount: ServiceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-    };
+    // Kiểm tra Firebase configuration
+    if (
+      !process.env.FIREBASE_PROJECT_ID ||
+      !process.env.FIREBASE_PRIVATE_KEY ||
+      !process.env.FIREBASE_CLIENT_EMAIL
+    ) {
+      console.warn(
+        "⚠️ Firebase configuration not found. Firebase services will be disabled."
+      );
+      // Khởi tạo app rỗng để tránh lỗi
+      this.app = admin.initializeApp(
+        {
+          projectId: "dummy-project",
+        },
+        "dummy-app"
+      );
+      return;
+    }
 
-    this.app = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID,
-    });
+    try {
+      // Khởi tạo Firebase Admin SDK với thông tin từ environment variables
+      const serviceAccount: ServiceAccount = {
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      };
+
+      this.app = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: process.env.FIREBASE_PROJECT_ID,
+      });
+
+      console.log("✅ Firebase Admin SDK initialized successfully");
+    } catch (error) {
+      console.error("❌ Error initializing Firebase Admin SDK:", error);
+      // Khởi tạo app rỗng để tránh lỗi
+      this.app = admin.initializeApp(
+        {
+          projectId: "dummy-project",
+        },
+        "dummy-fallback"
+      );
+    }
   }
 
   public static getInstance(): FirebaseService {
@@ -24,6 +56,17 @@ class FirebaseService {
       FirebaseService.instance = new FirebaseService();
     }
     return FirebaseService.instance;
+  }
+
+  /**
+   * Kiểm tra xem Firebase có được cấu hình đúng không
+   */
+  private isFirebaseConfigured(): boolean {
+    return !!(
+      process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_PRIVATE_KEY &&
+      process.env.FIREBASE_CLIENT_EMAIL
+    );
   }
 
   /**
@@ -35,6 +78,11 @@ class FirebaseService {
     body: string,
     data?: { [key: string]: string }
   ): Promise<string> {
+    if (!this.isFirebaseConfigured()) {
+      console.warn("⚠️ Firebase not configured. Notification not sent.");
+      return "firebase-not-configured";
+    }
+
     try {
       const message = {
         notification: {

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Attendance History APIs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .api-section {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+        }
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Attendance History APIs</h1>
+    
+    <div class="container">
+        <h2>Authentication & Configuration</h2>
+        <div class="form-group">
+            <label>JWT Token:</label>
+            <textarea id="token" rows="3" placeholder="Paste your JWT token here">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjIxMjE1NmMwY2M3N2JiZDcyZjZmMSIsImlhdCI6MTc1MTI1ODc5NywiZXhwIjoxNzUxMjYyMzk3fQ.i0nINX4LheAlE9sk9cp0Dfxgqy_2OTvvrj8RgePCiaU</textarea>
+        </div>
+        <div class="form-group">
+            <label>Base URL:</label>
+            <input type="text" id="baseUrl" value="http://localhost:3000/api/attendance" placeholder="API Base URL">
+        </div>
+        <button onclick="testLogin()">Test Login & Get New Token</button>
+    </div>
+
+    <div class="container api-section">
+        <h2>1. Attendance History (Paginated)</h2>
+        <p><strong>Endpoint:</strong> GET /api/attendance/history</p>
+        <div class="form-group">
+            <label>Page:</label>
+            <input type="number" id="historyPage" value="1" min="1">
+        </div>
+        <div class="form-group">
+            <label>Limit:</label>
+            <input type="number" id="historyLimit" value="10" min="1" max="50">
+        </div>
+        <button onclick="getAttendanceHistory()">Get Attendance History</button>
+        <div id="historyResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="container api-section">
+        <h2>2. Daily Details</h2>
+        <p><strong>Endpoint:</strong> GET /api/attendance/daily-details</p>
+        <div class="form-group">
+            <label>Work Date (YYYY-MM-DD):</label>
+            <input type="date" id="workDate" value="">
+        </div>
+        <div class="quick-actions">
+            <button onclick="testToday()">Today</button>
+            <button onclick="testYesterday()">Yesterday</button>
+            <button onclick="testLastWeek()">Last Week</button>
+        </div>
+        <button onclick="getDailyDetails()">Get Daily Details</button>
+        <div id="dailyResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="container api-section">
+        <h2>3. Monthly Details</h2>
+        <p><strong>Endpoint:</strong> GET /api/attendance/monthly-details</p>
+        <div class="form-group">
+            <label>Year:</label>
+            <input type="number" id="monthlyYear" value="2025" min="2020" max="2030">
+        </div>
+        <div class="form-group">
+            <label>Month:</label>
+            <select id="monthlyMonth">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6" selected>June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+        </div>
+        <div class="quick-actions">
+            <button onclick="testCurrentMonth()">Current Month</button>
+            <button onclick="testLastMonth()">Last Month</button>
+        </div>
+        <button onclick="getMonthlyDetails()">Get Monthly Details</button>
+        <div id="monthlyResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Set today's date as default
+        document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value;
+        }
+
+        function getToken() {
+            return document.getElementById('token').value.trim();
+        }
+
+        async function makeRequest(url, options = {}) {
+            const token = getToken();
+            if (!token) {
+                return { error: 'Please provide JWT token' };
+            }
+
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                const data = await response.json();
+                return { status: response.status, data };
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        function showResponse(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            
+            if (result.error) {
+                element.className = 'response error';
+                element.textContent = `Error: ${result.error}`;
+            } else if (result.status >= 400) {
+                element.className = 'response error';
+                element.textContent = JSON.stringify(result.data, null, 2);
+            } else {
+                element.className = 'response success';
+                element.textContent = JSON.stringify(result.data, null, 2);
+            }
+        }
+
+        // Test Login
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'test@gmail.com',
+                        password: 'Test123!'
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.data && data.data.token) {
+                    document.getElementById('token').value = data.data.token;
+                    alert('New token obtained and set!');
+                } else {
+                    alert('Login failed: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                alert('Login error: ' + error.message);
+            }
+        }
+
+        // 1. Attendance History
+        async function getAttendanceHistory() {
+            const page = document.getElementById('historyPage').value;
+            const limit = document.getElementById('historyLimit').value;
+            const url = `${getBaseUrl()}/history?page=${page}&limit=${limit}`;
+            const result = await makeRequest(url);
+            showResponse('historyResponse', result);
+        }
+
+        // 2. Daily Details
+        async function getDailyDetails() {
+            const workDate = document.getElementById('workDate').value;
+            if (!workDate) {
+                alert('Please select a work date');
+                return;
+            }
+            const url = `${getBaseUrl()}/daily-details?workDate=${workDate}`;
+            const result = await makeRequest(url);
+            showResponse('dailyResponse', result);
+        }
+
+        function testToday() {
+            document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
+            getDailyDetails();
+        }
+
+        function testYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            document.getElementById('workDate').value = yesterday.toISOString().split('T')[0];
+            getDailyDetails();
+        }
+
+        function testLastWeek() {
+            const lastWeek = new Date();
+            lastWeek.setDate(lastWeek.getDate() - 7);
+            document.getElementById('workDate').value = lastWeek.toISOString().split('T')[0];
+            getDailyDetails();
+        }
+
+        // 3. Monthly Details
+        async function getMonthlyDetails() {
+            const year = document.getElementById('monthlyYear').value;
+            const month = document.getElementById('monthlyMonth').value;
+            const url = `${getBaseUrl()}/monthly-details?year=${year}&month=${month}`;
+            const result = await makeRequest(url);
+            showResponse('monthlyResponse', result);
+        }
+
+        function testCurrentMonth() {
+            const now = new Date();
+            document.getElementById('monthlyYear').value = now.getFullYear();
+            document.getElementById('monthlyMonth').value = now.getMonth() + 1;
+            getMonthlyDetails();
+        }
+
+        function testLastMonth() {
+            const now = new Date();
+            now.setMonth(now.getMonth() - 1);
+            document.getElementById('monthlyYear').value = now.getFullYear();
+            document.getElementById('monthlyMonth').value = now.getMonth() + 1;
+            getMonthlyDetails();
+        }
+    </script>
+</body>
+</html>

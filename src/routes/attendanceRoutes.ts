@@ -67,5 +67,12 @@ router.get(
   authenticateToken,
   attendanceController.getMonthlyDetails
 );
+
+router.get(
+  "/daily-details",
+  authenticateToken,
+  attendanceController.getDailyAttendanceDetails
+);
+
 router.get("/history", authenticateToken, attendanceController.getHistory);
 export default router;

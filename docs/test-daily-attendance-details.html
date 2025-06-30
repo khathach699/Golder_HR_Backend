@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Daily Attendance Details API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .session-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .session-header {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        .session-detail {
+            margin: 3px 0;
+            font-size: 14px;
+        }
+        .status-completed {
+            color: #28a745;
+        }
+        .status-progress {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Daily Attendance Details API</h1>
+    
+    <div class="container">
+        <h2>Authentication</h2>
+        <div class="form-group">
+            <label>JWT Token:</label>
+            <textarea id="token" rows="3" placeholder="Paste your JWT token here"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Base URL:</label>
+            <input type="text" id="baseUrl" value="http://localhost:3000/api/attendance" placeholder="API Base URL">
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Get Daily Attendance Details</h2>
+        <div class="form-group">
+            <label>Work Date (YYYY-MM-DD):</label>
+            <input type="date" id="workDate" value="">
+        </div>
+        <button onclick="getDailyDetails()">Get Daily Details</button>
+        <div id="dailyDetailsResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>Quick Test Dates</h2>
+        <button onclick="testToday()">Test Today</button>
+        <button onclick="testYesterday()">Test Yesterday</button>
+        <button onclick="testLastWeek()">Test Last Week</button>
+    </div>
+
+    <script>
+        // Set today's date as default
+        document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value;
+        }
+
+        function getToken() {
+            return document.getElementById('token').value.trim();
+        }
+
+        async function makeRequest(url, options = {}) {
+            const token = getToken();
+            if (!token) {
+                return { error: 'Please provide JWT token' };
+            }
+
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                const data = await response.json();
+                return { status: response.status, data };
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        function showResponse(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            
+            if (result.error) {
+                element.className = 'response error';
+                element.textContent = `Error: ${result.error}`;
+            } else if (result.status >= 400) {
+                element.className = 'response error';
+                element.textContent = JSON.stringify(result.data, null, 2);
+            } else {
+                element.className = 'response success';
+                
+                // Format the response for better readability
+                if (result.data && result.data.data) {
+                    const attendanceData = result.data.data;
+                    let formattedResponse = `Work Date: ${attendanceData.workDate}\n`;
+                    formattedResponse += `Status: ${attendanceData.status}\n`;
+                    formattedResponse += `Total Sessions: ${attendanceData.totalSessions}\n`;
+                    formattedResponse += `Overall Total Hours: ${attendanceData.overallTotalHours}\n`;
+                    formattedResponse += `Overall Overtime: ${attendanceData.overallOvertime}\n\n`;
+                    
+                    if (attendanceData.sessions && attendanceData.sessions.length > 0) {
+                        formattedResponse += "Sessions:\n";
+                        attendanceData.sessions.forEach((session, index) => {
+                            formattedResponse += `\n--- Session ${session.sessionNumber} ---\n`;
+                            formattedResponse += `Check-in: ${session.checkIn ? session.checkIn.time : 'N/A'}\n`;
+                            formattedResponse += `Check-out: ${session.checkOut ? session.checkOut.time : 'Not yet'}\n`;
+                            formattedResponse += `Duration: ${session.duration}\n`;
+                            formattedResponse += `Status: ${session.status}\n`;
+                            if (session.checkIn && session.checkIn.location) {
+                                formattedResponse += `Location: ${session.checkIn.location}\n`;
+                            }
+                        });
+                    } else {
+                        formattedResponse += "\nNo sessions found for this date.";
+                    }
+                    
+                    element.textContent = formattedResponse;
+                } else {
+                    element.textContent = JSON.stringify(result.data, null, 2);
+                }
+            }
+        }
+
+        async function getDailyDetails() {
+            const workDate = document.getElementById('workDate').value;
+            if (!workDate) {
+                alert('Please select a work date');
+                return;
+            }
+
+            const url = `${getBaseUrl()}/daily-details?workDate=${workDate}`;
+            const result = await makeRequest(url);
+            showResponse('dailyDetailsResponse', result);
+        }
+
+        function testToday() {
+            document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
+            getDailyDetails();
+        }
+
+        function testYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            document.getElementById('workDate').value = yesterday.toISOString().split('T')[0];
+            getDailyDetails();
+        }
+
+        function testLastWeek() {
+            const lastWeek = new Date();
+            lastWeek.setDate(lastWeek.getDate() - 7);
+            document.getElementById('workDate').value = lastWeek.toISOString().split('T')[0];
+            getDailyDetails();
+        }
+    </script>
+</body>
+</html>
