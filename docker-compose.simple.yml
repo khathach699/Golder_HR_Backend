@@ -1,29 +1,7 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: golder_hr_mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: golder_hr
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-    networks:
-      - golder_hr_network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
+ 
   # Node.js Backend Application
   backend:
     build:
@@ -36,9 +14,6 @@ services:
       - "3000:3000"
     env_file:
       - .env.docker
-    depends_on:
-      mongodb:
-        condition: service_healthy
     volumes:
       - uploads_data:/app/uploads
       - ./logs:/app/logs
@@ -50,10 +25,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
 volumes:
-  mongodb_data:
-    driver: local
   uploads_data:
     driver: local
 

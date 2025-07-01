@@ -19,8 +19,5 @@ export const swaggerSpec = swaggerJsdoc({
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: [
-    "./src/routes/*.ts",
-    "./src/controllers/*.ts"
-  ], // <-- Đảm bảo đã bao gồm tất cả controller và route
+  apis: ["./src/routes/*.ts", "./src/controllers/*.ts"],
 });
