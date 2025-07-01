@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
 const bcrypt_1 = __importDefault(require("bcrypt"));
-const mongoose_paginate_v2_1 = __importDefault(require("mongoose-paginate-v2"));
+const mongoosePaginate = require("mongoose-paginate-v2");
 const userSchema = new mongoose_1.Schema({
     fullname: { type: String, required: true },
     password: { type: String, required: true },
@@ -29,7 +29,7 @@ const userSchema = new mongoose_1.Schema({
     IdMapper: { type: Number, default: null },
     CodeMapper: { type: String, maxlength: 50, default: null },
 }, { timestamps: true });
-userSchema.plugin(mongoose_paginate_v2_1.default);
+userSchema.plugin(mongoosePaginate);
 userSchema.pre("save", async function (next) {
     if (this.isModified("password")) {
         this.password = await bcrypt_1.default.hash(this.password, 10);

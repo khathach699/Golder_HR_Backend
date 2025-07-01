@@ -200,5 +200,74 @@ class NotificationService {
             throw error;
         }
     }
+    /**
+     * Send notification when overtime request is submitted
+     */
+    async sendOvertimeRequestNotification(overtimeRequest) {
+        try {
+            // Get all HR and admin users
+            const hrUsers = await user_1.default.find({
+                role: { $in: ["admin", "hr"] },
+                isActive: true,
+            });
+            if (hrUsers.length === 0)
+                return;
+            const recipientIds = hrUsers.map((user) => user._id?.toString() || "");
+            const formatDate = (date) => date.toLocaleDateString();
+            const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            await this.createAndSendNotification({
+                title: "New Overtime Request",
+                message: `${overtimeRequest.employeeName} has submitted an overtime request for ${formatDate(overtimeRequest.date)} (${formatTime(overtimeRequest.startTime)} - ${formatTime(overtimeRequest.endTime)})`,
+                type: "overtime_request",
+                priority: "high",
+                recipientIds,
+                data: {
+                    overtimeRequestId: overtimeRequest._id.toString(),
+                    employeeId: overtimeRequest.employeeId.toString(),
+                    employeeName: overtimeRequest.employeeName,
+                    date: overtimeRequest.date,
+                    hours: overtimeRequest.hours,
+                    type: overtimeRequest.type,
+                },
+            });
+        }
+        catch (error) {
+            console.error("Error sending overtime request notification:", error);
+        }
+    }
+    /**
+     * Send notification when overtime request is approved/rejected
+     */
+    async sendOvertimeApprovalNotification(overtimeRequest, isApproved, rejectionReason) {
+        try {
+            const formatDate = (date) => date.toLocaleDateString();
+            const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            const title = isApproved
+                ? "Overtime Request Approved"
+                : "Overtime Request Rejected";
+            let message = `Your overtime request for ${formatDate(overtimeRequest.date)} (${formatTime(overtimeRequest.startTime)} - ${formatTime(overtimeRequest.endTime)}) has been ${isApproved ? "approved" : "rejected"}.`;
+            if (!isApproved && rejectionReason) {
+                message += ` Reason: ${rejectionReason}`;
+            }
+            await this.createAndSendNotification({
+                title,
+                message,
+                type: isApproved ? "overtime_approved" : "overtime_rejected",
+                priority: "high",
+                recipientIds: [overtimeRequest.employeeId.toString()],
+                data: {
+                    overtimeRequestId: overtimeRequest._id.toString(),
+                    status: overtimeRequest.status,
+                    date: overtimeRequest.date,
+                    hours: overtimeRequest.hours,
+                    type: overtimeRequest.type,
+                    rejectionReason: rejectionReason || null,
+                },
+            });
+        }
+        catch (error) {
+            console.error("Error sending overtime approval notification:", error);
+        }
+    }
 }
 exports.default = NotificationService;

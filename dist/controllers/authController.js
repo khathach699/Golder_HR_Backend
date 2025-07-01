@@ -118,7 +118,7 @@ exports.register = register;
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login a user
+ *     summary: Đăng nhập người dùng
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -130,19 +130,43 @@ exports.register = register;
  *               - email
  *               - password
  *             properties:
+ *               accountType:
+ *                 type: string
+ *                 enum: [admin, user]
+ *                 description: Chọn loại tài khoản để test nhanh
+ *                 example: admin
  *               email:
  *                 type: string
  *                 format: email
- *                 description: User's email address
+ *                 description: Địa chỉ email của người dùng
  *                 example: admin@gmail.com
+ *                 enum:
+ *                   - admin@gmail.com
+ *                   - test@gmail.com
  *               password:
  *                 type: string
  *                 format: password
- *                 description: User's password
+ *                 description: Mật khẩu của người dùng
  *                 example: Admin123!
+ *                 enum:
+ *                   - Admin123!
+ *                   - User123!
+ *           examples:
+ *             admin:
+ *               summary: Tài khoản Admin
+ *               value:
+ *                 accountType: admin
+ *                 email: admin@gmail.com
+ *                 password: Admin123!
+ *             user:
+ *               summary: Tài khoản User
+ *               value:
+ *                 accountType: user
+ *                 email: test@gmail.com
+ *                 password: Test123!
  *     responses:
  *       200:
- *         description: User logged in successfully
+ *         description: Đăng nhập thành công
  *         content:
  *           application/json:
  *             schema:
@@ -161,10 +185,10 @@ exports.register = register;
  *           Set-Cookie:
  *             schema:
  *               type: string
- *               description: JWT token set in cookie
+ *               description: JWT token được set trong cookie
  *               example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Path=/; Max-Age=3600
  *       400:
- *         description: Bad request
+ *         description: Yêu cầu không hợp lệ
  */
 const login = async (req, res) => {
     try {

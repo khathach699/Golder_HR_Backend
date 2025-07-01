@@ -52,5 +52,6 @@ router.get("/today-summary", authMiddleware_1.authenticateToken, attendanceContr
 router.get("/summary/week", authMiddleware_1.authenticateToken, attendanceController.getWeekSummary);
 router.get("/summary/month", authMiddleware_1.authenticateToken, attendanceController.getMonthSummary);
 router.get("/monthly-details", authMiddleware_1.authenticateToken, attendanceController.getMonthlyDetails);
+router.get("/daily-details", authMiddleware_1.authenticateToken, attendanceController.getDailyAttendanceDetails);
 router.get("/history", authMiddleware_1.authenticateToken, attendanceController.getHistory);
 exports.default = router;

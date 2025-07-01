@@ -1,141 +1,86 @@
 import dotenv from "dotenv";
-// Load environment variables
+// Load environment variables first
 dotenv.config();
-import express, { Express, Request, Response, NextFunction } from "express";
+
+import express, { Express } from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
-import createError from "http-errors";
 import routes from "./routes/index";
-import { CreateErrorResponse } from "./utils/responseHandler";
-import swaggerJsdoc from "swagger-jsdoc";
+import { errorHandler, notFoundHandler } from "./middlewares/errorhandlers";
 import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./utils/swagger";
 import NotificationScheduler from "./services/notificationScheduler";
 import { LeaveService } from "./services/leaveService";
 
 const PORT = process.env.PORT || 3000;
 const MONGO_URL = process.env.MONGO_URL;
 const COOKIE_SECRET = process.env.COOKIE_SECRET || "your_cookie_secret_here";
+
 if (!MONGO_URL) {
-  throw new Error("❌ MONGO_URL environment variable is not defined!");
+  console.error("MONGO_URL environment variable is not defined!");
+  process.exit(1);
 }
 
-// Database connection function
-const connectDB = async () => {
-  try {
-    await mongoose.connect(MONGO_URL);
-    console.log(`Connected to MongoDB: ${MONGO_URL}`);
-  } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
+// Create Express app
+const app: Express = express();
+
+// Connect to MongoDB
+mongoose
+  .connect(MONGO_URL)
+  .then(() => {
+    console.log("Connected to MongoDB");
+  })
+  .catch((error) => {
+    console.error("MongoDB connection error:", error);
     process.exit(1);
-  }
-};
+  });
 
-// Swagger configuration
-const swaggerOptions = {
-  swaggerDefinition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Golden HR API",
-      version: "1.0.0",
-      description: "API documentation for Golden HR Backend",
-      contact: {
-        name: "Support",
-        email: "support@goldenhr.com",
-      },
+// Middleware
+app.use(helmet());
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: {
+      success: false,
+      message: "Too many requests, please try again later.",
     },
-    servers: [
-      {
-        url: `http://localhost:${PORT}`,
-        description: "Development server",
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-        },
-      },
-    },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
-  },
-  apis: ["./src/controllers/*.ts"],
-};
+  })
+);
+app.use(morgan("dev"));
+app.use(cors({ origin: "*", credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser(COOKIE_SECRET));
 
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
+// Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Initialize Express app
-const initializeApp = async () => {
-  await connectDB();
+// Routes
+app.use("/api", routes);
 
-  const app: Express = express();
+// Error handlers
+app.use(notFoundHandler);
+app.use(errorHandler);
 
-  // Middleware
-  app.use(helmet());
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 100,
-      message: {
-        success: false,
-        message: "Too many requests, please try again later.",
-      },
-    })
-  );
-  app.use(morgan("dev"));
-  app.use(cors({ origin: "*", credentials: true }));
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
-  app.use(cookieParser(COOKIE_SECRET));
+// Initialize leave policies
+LeaveService.initializeLeavePolicies()
+  .then(() => console.log("Leave policies initialized"))
+  .catch((error) => console.error("Error initializing leave policies:", error));
 
-  // Swagger UI
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+// Start notification scheduler
+const notificationScheduler = NotificationScheduler.getInstance();
+notificationScheduler.start();
 
-  // Routes
-  app.use("/api", routes);
-
-  // 404 Handler
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    next(createError(404, "Resource not found"));
-  });
-
-  // Error Handler
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    res.locals.message = err.message;
-    res.locals.error = process.env.NODE_ENV === "development" ? err : {};
-    CreateErrorResponse(res, err.status || 500, err.message);
-  });
-
-  // Initialize leave policies
-  try {
-    await LeaveService.initializeLeavePolicies();
-  } catch (error) {
-    console.error("❌ Error initializing leave policies:", error);
-  }
-
-  // Start notification scheduler
-  const notificationScheduler = NotificationScheduler.getInstance();
-  notificationScheduler.start();
-
-  // Start server
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
-    console.log(`Notification scheduler started`);
-  });
-};
-
-// Start the application
-initializeApp().catch((error) => {
-  console.error("Error starting the server:", error);
-  process.exit(1);
+// Start server
+app.listen(PORT, () => {
+  console.log("Server is running on port " + PORT);
+  console.log("Swagger UI available at http://localhost:" + PORT + "/api-docs");
+  console.log("Notification scheduler started");
 });
+
+export default app;

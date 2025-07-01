@@ -1,6 +1,6 @@
 import { Schema, model, Document } from "mongoose";
 import bcrypt from "bcrypt";
-import mongoosePaginate from "mongoose-paginate-v2";
+const mongoosePaginate = require("mongoose-paginate-v2");
 import { IUserDocument } from "../types/user";
 
 const userSchema = new Schema<IUserDocument>(

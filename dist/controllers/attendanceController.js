@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMonthlyDetails = exports.getHistory = exports.getMonthSummary = exports.getWeekSummary = exports.getTodaySummary = exports.checkAttendanceStatus = exports.uploadEmployeeFace = exports.getUsersForDropdown = exports.checkOut = exports.checkIn = void 0;
+exports.getDailyAttendanceDetails = exports.getMonthlyDetails = exports.getHistory = exports.getMonthSummary = exports.getWeekSummary = exports.getTodaySummary = exports.checkAttendanceStatus = exports.uploadEmployeeFace = exports.getUsersForDropdown = exports.checkOut = exports.checkIn = void 0;
 const attendanceService_1 = require("../services/attendanceService");
 const responseHandler_1 = require("../utils/responseHandler");
 const multer_1 = __importDefault(require("multer"));
@@ -741,3 +741,122 @@ const getMonthlyDetails = async (req, res) => {
     }
 };
 exports.getMonthlyDetails = getMonthlyDetails;
+/**
+ * @swagger
+ * /api/attendance/daily-details:
+ *   get:
+ *     summary: Get detailed attendance information for a specific day
+ *     tags: [Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: workDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: "2024-06-15"
+ *         description: The work date to get details for (YYYY-MM-DD format)
+ *     responses:
+ *       200:
+ *         description: Detailed attendance information for the specified day
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     workDate:
+ *                       type: string
+ *                       example: "2024-06-15"
+ *                     status:
+ *                       type: string
+ *                       example: "PRESENT"
+ *                     sessions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           sessionNumber:
+ *                             type: integer
+ *                             example: 1
+ *                           checkIn:
+ *                             type: object
+ *                             properties:
+ *                               time:
+ *                                 type: string
+ *                                 example: "8:30 AM"
+ *                               fullTime:
+ *                                 type: string
+ *                                 format: date-time
+ *                               location:
+ *                                 type: string
+ *                                 example: "Office Building"
+ *                               imageUrl:
+ *                                 type: string
+ *                           checkOut:
+ *                             type: object
+ *                             nullable: true
+ *                             properties:
+ *                               time:
+ *                                 type: string
+ *                                 example: "5:30 PM"
+ *                               fullTime:
+ *                                 type: string
+ *                                 format: date-time
+ *                               location:
+ *                                 type: string
+ *                                 example: "Office Building"
+ *                               imageUrl:
+ *                                 type: string
+ *                           duration:
+ *                             type: string
+ *                             example: "8h 30m"
+ *                           status:
+ *                             type: string
+ *                             example: "Completed"
+ *                     totalSessions:
+ *                       type: integer
+ *                       example: 2
+ *                     overallTotalHours:
+ *                       type: string
+ *                       example: "8h 30m"
+ *                     overallOvertime:
+ *                       type: string
+ *                       example: "0h 30m"
+ *       400:
+ *         description: Bad Request - Invalid or missing workDate
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+const getDailyAttendanceDetails = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 401, "Unauthorized");
+        }
+        const workDate = req.query.workDate;
+        if (!workDate) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "workDate is required in YYYY-MM-DD format");
+        }
+        // Validate date format
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(workDate)) {
+            return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Invalid date format. Use YYYY-MM-DD format");
+        }
+        const data = await AttendanceService.getDailyAttendanceDetails(userId, workDate);
+        return (0, responseHandler_1.CreateSuccessResponse)(res, 200, data);
+    }
+    catch (error) {
+        return (0, responseHandler_1.CreateErrorResponse)(res, 500, error.message);
+    }
+};
+exports.getDailyAttendanceDetails = getDailyAttendanceDetails;

@@ -37,7 +37,7 @@ const attendanceEntrySchema = new Schema(
 const attendanceSchema = new Schema<AttendanceDocument>(
   {
     employeeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    workDate: { type: String, required: true, index: true },
+    workDate: { type: String, required: true },
 
     checkIns: [{ type: attendanceEntrySchema }],
     checkOuts: [{ type: attendanceEntrySchema }],

@@ -53,16 +53,12 @@ const departmentSalarySchema = new Schema<IDepartmentSalary>(
 
 // Index để tối ưu query
 departmentSalarySchema.index({ employeeId: 1, departmentId: 1 });
-departmentSalarySchema.index({ employeeId: 1, isDefault: 1 });
 departmentSalarySchema.index({ employeeId: 1, isActive: 1 });
 
 // Đảm bảo mỗi nhân viên chỉ có 1 bộ phận mặc định
-departmentSalarySchema.index(
-  { employeeId: 1, isDefault: 1 },
-  { 
-    unique: true, 
-    partialFilterExpression: { isDefault: true } 
-  }
-);
+departmentSalarySchema.index({ employeeId: 1, isDefault: 1 });
 
-export default model<IDepartmentSalary>("DepartmentSalary", departmentSalarySchema);
+export default model<IDepartmentSalary>(
+  "DepartmentSalary",
+  departmentSalarySchema
+);

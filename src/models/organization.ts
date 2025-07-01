@@ -1,6 +1,5 @@
 import { Schema, model, Document } from "mongoose";
 
-// Interface cho Organization (Department)
 export interface IOrganization extends Document {
   name: string;
   description?: string;
@@ -8,7 +7,7 @@ export interface IOrganization extends Document {
   isActive: boolean;
   isdeleted: boolean;
   isdisable: boolean;
-  parentId?: Schema.Types.ObjectId; // Cho phép tạo cấu trúc phân cấp
+  parentId?: Schema.Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
   IdMapper?: number;
@@ -29,7 +28,7 @@ const organizationSchema = new Schema<IOrganization>(
     code: {
       type: String,
       unique: true,
-      sparse: true, // Cho phép null/undefined
+      sparse: true,
       trim: true,
     },
     isActive: {
@@ -62,9 +61,7 @@ const organizationSchema = new Schema<IOrganization>(
   { timestamps: true }
 );
 
-// Indexes để tối ưu query
 organizationSchema.index({ name: 1 });
-organizationSchema.index({ code: 1 });
 organizationSchema.index({ isActive: 1, isdeleted: 1, isdisable: 1 });
 organizationSchema.index({ parentId: 1 });
 

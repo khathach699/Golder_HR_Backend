@@ -64,7 +64,6 @@ const FCMTokenSchema: Schema = new Schema(
 
 // Indexes for better performance
 FCMTokenSchema.index({ userId: 1, isActive: 1 });
-FCMTokenSchema.index({ token: 1 }, { unique: true });
 FCMTokenSchema.index({ deviceId: 1 });
 FCMTokenSchema.index({ lastUsed: 1 });
 
