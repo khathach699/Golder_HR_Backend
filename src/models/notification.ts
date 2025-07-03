@@ -11,7 +11,11 @@ export interface INotification extends Document {
     | "announcement"
     | "reminder"
     | "custom"
-    | "overtime";
+    | "overtime"
+    | "submitLeaveRequest"
+    | "approveLeaveRequest"
+    | "rejectLeaveRequest";
+
   priority: "low" | "medium" | "high" | "urgent";
   recipients: {
     userId: mongoose.Types.ObjectId;
@@ -51,6 +55,9 @@ const NotificationSchema: Schema = new Schema(
         "reminder",
         "custom",
         "overtime",
+        "submitLeaveRequest",
+        "approveLeaveRequest",
+        "rejectLeaveRequest",
       ],
       default: "system",
       required: true,
@@ -69,6 +76,10 @@ const NotificationSchema: Schema = new Schema(
           required: true,
         },
         isRead: {
+          type: Boolean,
+          default: false,
+        },
+        isDeleted: {
           type: Boolean,
           default: false,
         },
@@ -158,6 +169,7 @@ NotificationSchema.statics.getForUser = function (
 
   const query: any = {
     "recipients.userId": userId,
+    "recipients.isDeleted": false,
     isActive: true,
     $and: [
       {
@@ -195,6 +207,7 @@ NotificationSchema.statics.getUnreadCount = function (
   return this.countDocuments({
     "recipients.userId": userId,
     "recipients.isRead": false,
+    "recipients.isDeleted": false,
     isActive: true,
     $and: [
       {

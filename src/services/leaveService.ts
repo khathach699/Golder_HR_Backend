@@ -7,9 +7,9 @@ import NotificationService from "../services/notificationService";
 export interface LeaveSummary {
   thisMonthDays: number;
   thisYearDays: number;
-  pendingRequests: number; // Total pending days (not count of requests)
-  approvedRequests: number; // Total approved days (not count of requests)
-  rejectedRequests: number; // Total rejected days (not count of requests)
+  pendingRequests: number;
+  approvedRequests: number;
+  rejectedRequests: number;
   remainingDays: number;
   totalAllowedDays: number;
   leaveBalanceByType: {
@@ -36,7 +36,6 @@ export class LeaveService {
       const existingPolicies = await LeavePolicy.find();
       if (existingPolicies.length === 0) {
         await LeavePolicy.insertMany(DEFAULT_LEAVE_POLICIES);
-        console.log("✅ Default leave policies initialized");
       }
     } catch (error) {
       console.error("❌ Error initializing leave policies:", error);
@@ -232,21 +231,21 @@ export class LeaveService {
       }
     }
 
-    // Check for overlapping leave requests
-    const overlappingRequest = await LeaveRequest.findOne({
-      employeeId,
-      status: { $in: ["pending", "approved"] },
-      $or: [
-        {
-          startDate: { $lte: endDate },
-          endDate: { $gte: startDate },
-        },
-      ],
-    });
+    // // Check for overlapping leave requests
+    // const overlappingRequest = await LeaveRequest.findOne({
+    //   employeeId,
+    //   status: { $in: ["pending", "approved"] },
+    //   $or: [
+    //     {
+    //       startDate: { $lte: endDate },
+    //       endDate: { $gte: startDate },
+    //     },
+    //   ],
+    // });
 
-    if (overlappingRequest) {
-      throw new Error("You already have a leave request for this period");
-    }
+    // if (overlappingRequest) {
+    //   throw new Error("You already have a leave request for this period");
+    // }
 
     // Create leave request
     const leaveRequest = new LeaveRequest({

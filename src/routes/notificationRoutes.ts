@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { body, param, query } from "express-validator";
 import notificationController from "../controllers/notificationController";
+
 import { authenticateToken } from "../middlewares/authMiddleware";
 import { validateRequest } from "../middlewares/validationMiddleware";
 
@@ -30,14 +31,15 @@ router.get(
   notificationController.getNotifications
 );
 
-router.patch(
+router.get(
   "/:notificationId/read",
   [param("notificationId").isMongoId().withMessage("Invalid notification ID")],
   validateRequest,
   notificationController.markAsRead
 );
+router.get("/unread-count", notificationController.getUnreadCount);
 
-router.patch("/read-all", notificationController.markAllAsRead);
+router.get("/read-all", notificationController.markAllAsRead);
 
 router.post(
   "/",
@@ -121,6 +123,13 @@ router.delete(
   [body("token").notEmpty().withMessage("FCM token is required")],
   validateRequest,
   notificationController.removeFCMToken
+);
+
+router.delete(
+  "/:notificationId",
+  [param("notificationId").isMongoId().withMessage("Invalid notification ID")],
+  validateRequest,
+  notificationController.deleteNotification
 );
 
 // Admin notification endpoint

@@ -82,15 +82,9 @@ export const getAllUsers = async (req: Request, res: Response) => {
       sortOrder: (req.query.sortOrder as "asc" | "desc") || "desc",
     };
 
-    console.log(
-      "🔍 [DEBUG] AdminUserController: getAllUsers called with options:",
-      options
-    );
-
     const result = await AdminUserService.getAllUsers(options);
     return CreateSuccessResponse(res, 200, result);
   } catch (error: any) {
-    console.error("Get all users error:", error.message);
     return CreateErrorResponse(res, 500, error.message);
   }
 };
@@ -147,7 +141,6 @@ export const createUser = async (req: Request, res: Response) => {
     const newUser = await AdminUserService.createUser(userData);
     return CreateSuccessResponse(res, 201, { user: newUser });
   } catch (error: any) {
-    console.error("Create user error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -182,7 +175,6 @@ export const getUserById = async (req: Request, res: Response) => {
     const user = await AdminUserService.getUserById(userId);
     return CreateSuccessResponse(res, 200, { user });
   } catch (error: any) {
-    console.error("Get user by ID error:", error.message);
     return CreateErrorResponse(res, 404, error.message);
   }
 };
@@ -245,7 +237,6 @@ export const updateUser = async (req: Request, res: Response) => {
     const updatedUser = await AdminUserService.updateUser(userId, updateData);
     return CreateSuccessResponse(res, 200, { user: updatedUser });
   } catch (error: any) {
-    console.error("Update user error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -292,7 +283,6 @@ export const softDeleteUser = async (req: Request, res: Response) => {
       user: deletedUser,
     });
   } catch (error: any) {
-    console.error("Soft delete user error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -332,7 +322,6 @@ export const restoreUser = async (req: Request, res: Response) => {
       user: restoredUser,
     });
   } catch (error: any) {
-    console.error("Restore user error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -385,7 +374,6 @@ export const toggleUserStatus = async (req: Request, res: Response) => {
       user: updatedUser,
     });
   } catch (error: any) {
-    console.error("Toggle user status error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -410,7 +398,6 @@ export const getUserStatistics = async (req: Request, res: Response) => {
     const statistics = await AdminUserService.getUserStatistics();
     return CreateSuccessResponse(res, 200, { statistics });
   } catch (error: any) {
-    console.error("Get user statistics error:", error.message);
     return CreateErrorResponse(res, 500, error.message);
   }
 };
@@ -477,7 +464,6 @@ export const resetUserPassword = async (req: Request, res: Response) => {
       message: "Password reset successfully",
     });
   } catch (error: any) {
-    console.error("Reset user password error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -547,7 +533,6 @@ export const bulkDeleteUsers = async (req: Request, res: Response) => {
       deletedCount: result.modifiedCount,
     });
   } catch (error: any) {
-    console.error("Bulk delete users error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };
@@ -605,7 +590,6 @@ export const bulkRestoreUsers = async (req: Request, res: Response) => {
       restoredCount: result.modifiedCount,
     });
   } catch (error: any) {
-    console.error("Bulk restore users error:", error.message);
     return CreateErrorResponse(res, 400, error.message);
   }
 };

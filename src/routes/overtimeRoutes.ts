@@ -40,7 +40,6 @@ router.get("/:requestId", authenticateToken, getOvertimeRequestById);
 
 // Debug route to test authorization
 router.get("/admin/debug", authenticateToken, (req: any, res: any) => {
-  console.log("🔍 [DEBUG] User object:", JSON.stringify(req.user, null, 2));
   res.json({
     success: true,
     user: {

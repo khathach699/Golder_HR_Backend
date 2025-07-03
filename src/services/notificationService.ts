@@ -3,6 +3,7 @@ import Notification from "../models/notification";
 import FCMToken from "../models/fcmToken";
 import User from "../models/user";
 import FirebaseService from "./firebaseService";
+import notification from "../models/notification";
 
 class NotificationService {
   private static instance: NotificationService;
@@ -423,6 +424,44 @@ class NotificationService {
       });
     } catch (error) {
       console.error("Error sending overtime approval notification:", error);
+    }
+  }
+
+  async getUnreadCount(userId: string): Promise<number> {
+    try {
+      return await Notification.countDocuments({
+        recipients: {
+          $elemMatch: {
+            userId: new mongoose.Types.ObjectId(userId),
+            isRead: false,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Lỗi khi lấy số lượng thông báo chưa đọc:", error);
+      throw error;
+    }
+  }
+
+  async deleteNotificationForUser(
+    notificationId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      await Notification.updateOne(
+        {
+          _id: notificationId,
+          "recipients.userId": userId,
+        },
+        {
+          $set: {
+            "recipients.$.isDeleted": true,
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Lỗi khi xóa thông báo cho người dùng:", error);
+      throw error;
     }
   }
 }
