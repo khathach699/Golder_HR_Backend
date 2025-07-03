@@ -48,8 +48,7 @@ RUN mkdir -p uploads
 EXPOSE 3000
 
 # Start the application with nodemon for hot reload
-CMD ["nodemon", "--watch", "src", "--exec", "ts-node", "src/server.ts"]
-
+CMD ["nodemon", "--watch", "src", "--exec", "ts-node", "src/app.ts"]
 # Stage 3: Production stage
 FROM node:18-alpine AS production
 

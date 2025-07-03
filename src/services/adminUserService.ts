@@ -375,7 +375,11 @@ export const getUserStatistics = async () => {
     {
       $group: {
         _id: null,
-        totalUsers: { $sum: 1 },
+        totalUsers: {
+          $sum: {
+            $cond: [{ $eq: ["$isdeleted", false] }, 1, 0],
+          },
+        },
         activeUsers: {
           $sum: {
             $cond: [
@@ -432,6 +436,26 @@ export const getUserStatistics = async () => {
     { $sort: { count: -1 } },
   ]);
 
+  const departmentStats = await User.aggregate([
+    {
+      $match: {
+        isdeleted: false,
+        $and: [
+          { department: { $exists: true } },
+          { department: { $ne: null } },
+          { department: { $ne: "" } },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: "$department",
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { count: -1 } },
+  ]);
+
   return {
     overview: stats[0] || {
       totalUsers: 0,
@@ -440,5 +464,6 @@ export const getUserStatistics = async () => {
       deletedUsers: 0,
     },
     roleDistribution: roleStats,
+    departmentDistribution: departmentStats,
   };
 };

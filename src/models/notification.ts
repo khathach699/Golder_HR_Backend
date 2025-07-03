@@ -10,7 +10,8 @@ export interface INotification extends Document {
     | "leave"
     | "announcement"
     | "reminder"
-    | "custom";
+    | "custom"
+    | "overtime";
   priority: "low" | "medium" | "high" | "urgent";
   recipients: {
     userId: mongoose.Types.ObjectId;
@@ -49,6 +50,7 @@ const NotificationSchema: Schema = new Schema(
         "announcement",
         "reminder",
         "custom",
+        "overtime",
       ],
       default: "system",
       required: true,

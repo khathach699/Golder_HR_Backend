@@ -180,8 +180,19 @@ export class OvertimeService {
     console.log("✅ [SERVICE] Overtime request saved successfully");
 
     // Send notification to HR/managers
-    // TODO: Implement overtime notification methods
-    // await NotificationService.getInstance().sendOvertimeRequestNotification(savedRequest);
+    try {
+      const NotificationService = (await import("./notificationService"))
+        .default;
+      await NotificationService.getInstance().sendOvertimeRequestNotification(
+        savedRequest
+      );
+      console.log("✅ [SERVICE] Overtime notification sent successfully");
+    } catch (error) {
+      console.error(
+        "❌ [SERVICE] Failed to send overtime notification:",
+        error
+      );
+    }
 
     return savedRequest;
   }
@@ -268,8 +279,22 @@ export class OvertimeService {
     const savedRequest = await overtimeRequest.save();
 
     // Send notification to employee
-    // TODO: Implement overtime notification methods
-    // await NotificationService.getInstance().sendOvertimeApprovalNotification(savedRequest, true);
+    try {
+      const NotificationService = (await import("./notificationService"))
+        .default;
+      await NotificationService.getInstance().sendOvertimeApprovalNotification(
+        savedRequest,
+        true
+      );
+      console.log(
+        "✅ [SERVICE] Overtime approval notification sent successfully"
+      );
+    } catch (error) {
+      console.error(
+        "❌ [SERVICE] Failed to send overtime approval notification:",
+        error
+      );
+    }
 
     return savedRequest;
   }
@@ -296,8 +321,23 @@ export class OvertimeService {
     const savedRequest = await overtimeRequest.save();
 
     // Send notification to employee
-    // TODO: Implement overtime notification methods
-    // await NotificationService.getInstance().sendOvertimeApprovalNotification(savedRequest, false, rejectionReason);
+    try {
+      const NotificationService = (await import("./notificationService"))
+        .default;
+      await NotificationService.getInstance().sendOvertimeApprovalNotification(
+        savedRequest,
+        false,
+        rejectionReason
+      );
+      console.log(
+        "✅ [SERVICE] Overtime rejection notification sent successfully"
+      );
+    } catch (error) {
+      console.error(
+        "❌ [SERVICE] Failed to send overtime rejection notification:",
+        error
+      );
+    }
 
     return savedRequest;
   }

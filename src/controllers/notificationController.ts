@@ -4,6 +4,7 @@ import Notification, { INotification } from "../models/notification";
 import FCMToken from "../models/fcmToken";
 import User from "../models/user";
 import FirebaseService from "../services/firebaseService";
+import NotificationService from "../services/notificationService";
 import {
   CreateSuccessResponse,
   CreateErrorResponse,
@@ -270,6 +271,97 @@ class NotificationController {
     } catch (error) {
       console.error("Error removing FCM token:", error);
       CreateErrorResponse(res, 500, "Failed to remove FCM token");
+    }
+  };
+
+  /**
+   * Gửi thông báo đến admin khi có request mới
+   */
+  public notifyAdminNewRequest = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ) => {
+    try {
+      const { requestType, requestId, employeeName, requestDetails } = req.body;
+
+      // 1. Kiểm tra dữ liệu đầu vào
+      if (!requestType || !requestId || !employeeName || !requestDetails) {
+        return CreateErrorResponse(res, 400, "Missing required fields");
+      }
+
+      console.log("📋 Admin notification request received:", {
+        requestType,
+        requestId,
+        employeeName,
+        requestDetails,
+      });
+
+      // 2. Tìm tất cả user chưa bị vô hiệu hóa
+      const adminUsers = await User.find({ isdisable: false })
+        .populate("role")
+        .select("_id fullname role");
+
+      // 3. Lọc user có role.name === "admin"
+      const filteredAdminUsers = adminUsers.filter(
+        (user) =>
+          user.role &&
+          typeof user.role === "object" &&
+          (user.role as any).name === "admin"
+      );
+
+      const adminIds = filteredAdminUsers.map((admin) => admin.id.toString());
+
+      // 4. Nếu không có admin nào, log cảnh báo nhưng không trả lỗi
+      if (adminIds.length === 0) {
+        console.warn("⚠️ No active admin users found, skipping notification");
+        return CreateSuccessResponse(res, 200, "No admin to notify (skipped)", {
+          notifiedAdmins: 0,
+          adminIds: [],
+        });
+      }
+
+      console.log("👥 Found admin users:", adminIds);
+
+      // 5. Tạo tiêu đề và nội dung thông báo
+      const title =
+        requestType === "leave"
+          ? "Đơn xin nghỉ phép mới"
+          : "Đơn làm thêm giờ mới";
+
+      const message = `${employeeName} đã gửi ${requestDetails}`;
+
+      // 6. Gửi thông báo qua NotificationService
+      const notificationService = NotificationService.getInstance();
+      await notificationService.createAndSendNotification({
+        title,
+        message,
+        type: requestType, // leave | overtime
+        priority: "high",
+        recipientIds: adminIds,
+        senderId: req.user?._id,
+        data: {
+          requestType,
+          requestId,
+          employeeName,
+          requestDetails,
+        },
+      });
+
+      console.log("✅ Admin notification sent successfully");
+
+      // 7. Trả kết quả thành công
+      return CreateSuccessResponse(
+        res,
+        200,
+        "Admin notification sent successfully",
+        {
+          notifiedAdmins: adminIds.length,
+          adminIds,
+        }
+      );
+    } catch (error) {
+      console.error("❌ Error sending admin notification:", error);
+      return CreateErrorResponse(res, 500, "Failed to send admin notification");
     }
   };
 

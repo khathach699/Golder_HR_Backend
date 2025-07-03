@@ -337,11 +337,15 @@ class NotificationService {
     overtimeRequest: any
   ): Promise<void> {
     try {
-      // Get all HR and admin users
-      const hrUsers = await User.find({
-        role: { $in: ["admin", "hr"] },
+      // Get all HR and admin users - need to populate role to check role name
+      const allUsers = await User.find({
         isActive: true,
-      });
+      }).populate("role");
+
+      // Filter users with admin or hr role
+      const hrUsers = allUsers.filter(
+        (user) => user.role && ["admin", "hr"].includes((user.role as any).name)
+      );
 
       if (hrUsers.length === 0) return;
 
