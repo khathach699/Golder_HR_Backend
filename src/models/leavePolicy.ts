@@ -1,16 +1,7 @@
-import mongoose, { Document, Schema } from "mongoose";
+// Filename: leavePolicy.model.ts
 
-export interface ILeavePolicy extends Document {
-  leaveType: "annual" | "sick" | "personal" | "maternity" | "unpaid";
-  maxDaysPerYear: number;
-  maxDaysPerRequest: number;
-  advanceNoticeDays: number;
-  carryOverDays?: number; // Days that can be carried over to next year
-  isActive: boolean;
-  description?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import mongoose, { Schema } from "mongoose";
+import { ILeavePolicy } from "../types/ILeavePolicy";
 
 const LeavePolicySchema: Schema = new Schema(
   {

@@ -1,6 +1,6 @@
-import DepartmentSalary, {
-  IDepartmentSalary,
-} from "../models/departmentSalary";
+import { IDepartmentSalary } from "./../types/IDepartmentSalary";
+import DepartmentSalary from "../models/departmentSalary";
+
 import User from "../models/user";
 
 // Lấy thông tin bộ phận và mức lương cho nhân viên

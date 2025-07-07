@@ -1,6 +1,7 @@
+
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Notification, { INotification } from "../models/notification";
+import Notification from "../models/notification";
 import FCMToken from "../models/fcmToken";
 import User from "../models/user";
 import FirebaseService from "../services/firebaseService";

@@ -1,21 +1,7 @@
-import mongoose, { Document, Schema } from "mongoose";
+// Filename: leaveRequest.model.ts
 
-export interface ILeaveRequest extends Document {
-  employeeId: mongoose.Types.ObjectId;
-  employeeName: string;
-  type: "annual" | "sick" | "personal" | "maternity" | "unpaid";
-  startDate: Date;
-  endDate: Date;
-  duration: number; // in days
-  reason: string;
-  status: "pending" | "approved" | "rejected" | "cancelled";
-  assignedApproverId?: mongoose.Types.ObjectId;
-  approvedBy?: mongoose.Types.ObjectId;
-  approvedAt?: Date;
-  rejectionReason?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import mongoose, { Schema } from "mongoose";
+import { ILeaveRequest } from "../types/ILeaveRequest";
 
 const LeaveRequestSchema: Schema = new Schema(
   {

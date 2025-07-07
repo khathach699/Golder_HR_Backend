@@ -1,8 +1,6 @@
-import { Schema, model, Document } from "mongoose";
+import { IRole } from "./../types/role";
 
-interface IRole extends Document {
-  name: string;
-}
+import { Schema, model } from "mongoose";
 
 const roleSchema = new Schema<IRole>({
   name: { type: String, required: true, unique: true },

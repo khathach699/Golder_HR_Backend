@@ -1,17 +1,7 @@
-import { Schema, model, Document } from "mongoose";
+// Tên tệp: departmentSalary.model.ts
 
-// Interface cho Department Salary
-export interface IDepartmentSalary extends Document {
-  employeeId: Schema.Types.ObjectId;
-  departmentId: Schema.Types.ObjectId;
-  hourlyRate: number; // Mức lương theo giờ
-  isDefault: boolean; // Bộ phận mặc định của nhân viên
-  isActive: boolean; // Có đang hoạt động không
-  effectiveFrom: Date; // Có hiệu lực từ ngày
-  effectiveTo?: Date; // Có hiệu lực đến ngày (optional)
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+import { Schema, model } from "mongoose";
+import { IDepartmentSalary } from "../types/IDepartmentSalary";
 
 const departmentSalarySchema = new Schema<IDepartmentSalary>(
   {

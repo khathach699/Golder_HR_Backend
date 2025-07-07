@@ -1,4 +1,6 @@
-import LeaveRequest, { ILeaveRequest } from "../models/leave";
+import { ILeaveRequest } from "./../types/ILeaveRequest";
+import LeaveRequest from "../models/leave";
+
 import LeavePolicy, { DEFAULT_LEAVE_POLICIES } from "../models/leavePolicy";
 import User from "../models/user";
 import Role from "../models/role";
@@ -231,21 +233,21 @@ export class LeaveService {
       }
     }
 
-    // // Check for overlapping leave requests
-    // const overlappingRequest = await LeaveRequest.findOne({
-    //   employeeId,
-    //   status: { $in: ["pending", "approved"] },
-    //   $or: [
-    //     {
-    //       startDate: { $lte: endDate },
-    //       endDate: { $gte: startDate },
-    //     },
-    //   ],
-    // });
+    // Check for overlapping leave requests
+    const overlappingRequest = await LeaveRequest.findOne({
+      employeeId,
+      status: { $in: ["pending", "approved"] },
+      $or: [
+        {
+          startDate: { $lte: endDate },
+          endDate: { $gte: startDate },
+        },
+      ],
+    });
 
-    // if (overlappingRequest) {
-    //   throw new Error("You already have a leave request for this period");
-    // }
+    if (overlappingRequest) {
+      throw new Error("You already have a leave request for this period");
+    }
 
     // Create leave request
     const leaveRequest = new LeaveRequest({

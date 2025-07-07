@@ -1,4 +1,6 @@
-import OvertimeRequest, { IOvertimeRequest } from "../models/overtime";
+import { IOvertimeRequest } from "./../types/IOvertimeRequest";
+import OvertimeRequest from "../models/overtime";
+
 import User from "../models/user";
 import Role from "../models/role";
 import NotificationService from "./notificationService";
@@ -123,7 +125,7 @@ export class OvertimeService {
     }
 
     // Check for overlapping requests on the same date
-    console.log("🔍 [SERVICE] Checking for existing requests...");
+
     const existingRequest = await OvertimeRequest.findOne({
       employeeId,
       date: {
@@ -141,27 +143,14 @@ export class OvertimeService {
       status: { $in: ["pending", "approved"] },
     });
 
-    console.log(
-      "🔍 [SERVICE] Existing request:",
-      existingRequest ? "Found" : "Not found"
-    );
-
     if (existingRequest) {
-      console.log(
-        "❌ [SERVICE] You already have an overtime request for this date"
-      );
       throw new Error("You already have an overtime request for this date");
     }
 
-    // Calculate hours
-    console.log("🔍 [SERVICE] Calculating hours...");
     const diffMs =
       requestData.endTime.getTime() - requestData.startTime.getTime();
     const hours = diffMs / (1000 * 60 * 60);
-    console.log("🔍 [SERVICE] Calculated hours:", hours);
-
     // Create overtime request
-    console.log("🔍 [SERVICE] Creating overtime request...");
     const overtimeRequest = new OvertimeRequest({
       employeeId,
       employeeName: employee.fullname,
@@ -175,9 +164,7 @@ export class OvertimeService {
       assignedApproverId: requestData.approverId || null,
     });
 
-    console.log("🔍 [SERVICE] Saving overtime request...");
     const savedRequest = await overtimeRequest.save();
-    console.log("✅ [SERVICE] Overtime request saved successfully");
 
     // Send notification to HR/managers
     try {
@@ -186,7 +173,6 @@ export class OvertimeService {
       await NotificationService.getInstance().sendOvertimeRequestNotification(
         savedRequest
       );
-      console.log("✅ [SERVICE] Overtime notification sent successfully");
     } catch (error) {
       console.error(
         "❌ [SERVICE] Failed to send overtime notification:",

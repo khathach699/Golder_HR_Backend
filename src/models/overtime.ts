@@ -1,27 +1,12 @@
-import mongoose, { Document, Schema } from "mongoose";
+// Filename: overtimeRequest.model.ts
 
-export interface IOvertimeRequest extends Document {
-  employeeId: mongoose.Types.ObjectId;
-  employeeName: string;
-  date: Date;
-  startTime: Date;
-  endTime: Date;
-  hours: number;
-  reason: string;
-  type: "regular" | "weekend" | "holiday";
-  status: "pending" | "approved" | "rejected";
-  assignedApproverId?: mongoose.Types.ObjectId;
-  approvedBy?: mongoose.Types.ObjectId;
-  approvedAt?: Date;
-  rejectionReason?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Schema, model } from "mongoose";
+import { IOvertimeRequest } from "../types/IOvertimeRequest"; // Import the interface
 
-const OvertimeRequestSchema: Schema = new Schema(
+const OvertimeRequestSchema = new Schema<IOvertimeRequest>(
   {
     employeeId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
@@ -62,11 +47,11 @@ const OvertimeRequestSchema: Schema = new Schema(
       default: "pending",
     },
     assignedApproverId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User",
     },
     approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User",
     },
     approvedAt: {
@@ -78,6 +63,7 @@ const OvertimeRequestSchema: Schema = new Schema(
     },
   },
   {
+    // Mongoose adds createdAt and updatedAt automatically
     timestamps: true,
   }
 );
@@ -87,18 +73,19 @@ OvertimeRequestSchema.index({ employeeId: 1, createdAt: -1 });
 OvertimeRequestSchema.index({ status: 1, createdAt: -1 });
 OvertimeRequestSchema.index({ date: 1 });
 
-// Virtual for calculating hours automatically
-OvertimeRequestSchema.pre("save", function (next) {
-  if (this.startTime && this.endTime) {
-    const startTime = this.startTime as Date;
-    const endTime = this.endTime as Date;
-    const diffMs = endTime.getTime() - startTime.getTime();
-    this.hours = diffMs / (1000 * 60 * 60); // Convert to hours
+// Mongoose middleware to calculate hours before saving
+OvertimeRequestSchema.pre<IOvertimeRequest>("save", function (next) {
+  // `this` refers to the document being saved
+  if (this.isModified("startTime") || this.isModified("endTime")) {
+    const diffMs = this.endTime.getTime() - this.startTime.getTime();
+    this.hours = parseFloat((diffMs / (1000 * 60 * 60)).toFixed(2)); // Convert ms to hours, rounded to 2 decimal places
   }
   next();
 });
 
-export default mongoose.model<IOvertimeRequest>(
+const OvertimeRequest = model<IOvertimeRequest>(
   "OvertimeRequest",
   OvertimeRequestSchema
 );
+
+export default OvertimeRequest;
