@@ -8,6 +8,7 @@ const notification_1 = __importDefault(require("../models/notification"));
 const fcmToken_1 = __importDefault(require("../models/fcmToken"));
 const user_1 = __importDefault(require("../models/user"));
 const firebaseService_1 = __importDefault(require("../services/firebaseService"));
+const notificationService_1 = __importDefault(require("../services/notificationService"));
 const responseHandler_1 = require("../utils/responseHandler");
 class NotificationController {
     constructor() {
@@ -38,7 +39,6 @@ class NotificationController {
                 });
             }
             catch (error) {
-                console.error("Error getting notifications:", error);
                 (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to get notifications");
             }
         };
@@ -57,7 +57,6 @@ class NotificationController {
                 (0, responseHandler_1.CreateSuccessResponse)(res, 200, "Notification marked as read");
             }
             catch (error) {
-                console.error("Error marking notification as read:", error);
                 (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to mark notification as read");
             }
         };
@@ -70,17 +69,57 @@ class NotificationController {
                 await notification_1.default.updateMany({
                     "recipients.userId": userId,
                     "recipients.isRead": false,
+                    "recipients.isDeleted": false,
+                    isActive: true,
+                    $and: [
+                        {
+                            $or: [
+                                { scheduledAt: { $lte: new Date() } },
+                                { scheduledAt: { $exists: false } },
+                            ],
+                        },
+                        {
+                            $or: [
+                                { expiresAt: { $gt: new Date() } },
+                                { expiresAt: { $exists: false } },
+                            ],
+                        },
+                    ],
                 }, {
                     $set: {
                         "recipients.$.isRead": true,
                         "recipients.$.readAt": new Date(),
+                        "recipients.$.isDeleted": true,
                     },
                 });
                 (0, responseHandler_1.CreateSuccessResponse)(res, 200, "All notifications marked as read");
             }
             catch (error) {
-                console.error("Error marking all notifications as read:", error);
                 (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to mark all notifications as read");
+            }
+        };
+        this.getUnreadCount = async (req, res) => {
+            try {
+                const userId = new mongoose_1.default.Types.ObjectId(req.user._id);
+                const count = await notification_1.default.getUnreadCount(userId);
+                (0, responseHandler_1.CreateSuccessResponse)(res, 200, "Unread count retrieved successfully", {
+                    unreadCount: count,
+                });
+            }
+            catch (error) {
+                (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to get unread count");
+            }
+        };
+        this.deleteNotification = async (req, res) => {
+            try {
+                const { notificationId } = req.params;
+                const userId = req.user._id.toString();
+                await notificationService_1.default.getInstance().deleteNotificationForUser(notificationId, userId);
+                (0, responseHandler_1.CreateSuccessResponse)(res, 200, "Notification deleted successfully");
+            }
+            catch (error) {
+                console.error("Lỗi khi xóa mềm notification:", error);
+                (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to delete notification");
             }
         };
         /**
@@ -114,7 +153,6 @@ class NotificationController {
                 (0, responseHandler_1.CreateSuccessResponse)(res, 201, "Notification created successfully", notification);
             }
             catch (error) {
-                console.error("Error creating notification:", error);
                 (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to create notification");
             }
         };
@@ -162,7 +200,6 @@ class NotificationController {
                 (0, responseHandler_1.CreateSuccessResponse)(res, 200, "FCM token registered successfully", fcmToken);
             }
             catch (error) {
-                console.error("Error registering FCM token:", error);
                 (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to register FCM token");
             }
         };
@@ -176,8 +213,68 @@ class NotificationController {
                 (0, responseHandler_1.CreateSuccessResponse)(res, 200, "FCM token removed successfully");
             }
             catch (error) {
-                console.error("Error removing FCM token:", error);
                 (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to remove FCM token");
+            }
+        };
+        /**
+         * Gửi thông báo đến admin khi có request mới
+         */
+        this.notifyAdminNewRequest = async (req, res) => {
+            try {
+                const { requestType, requestId, employeeName, requestDetails } = req.body;
+                // 1. Kiểm tra dữ liệu đầu vào
+                if (!requestType || !requestId || !employeeName || !requestDetails) {
+                    return (0, responseHandler_1.CreateErrorResponse)(res, 400, "Missing required fields");
+                }
+                console.log("📋 Admin notification request received:", {
+                    requestType,
+                    requestId,
+                    employeeName,
+                    requestDetails,
+                });
+                const adminUsers = await user_1.default.find({ isdisable: false })
+                    .populate("role")
+                    .select("_id fullname role");
+                const filteredAdminUsers = adminUsers.filter((user) => user.role &&
+                    typeof user.role === "object" &&
+                    user.role.name === "admin");
+                const adminIds = filteredAdminUsers.map((admin) => admin.id.toString());
+                // 4. Nếu không có admin nào, log cảnh báo nhưng không trả lỗi
+                if (adminIds.length === 0) {
+                    return (0, responseHandler_1.CreateSuccessResponse)(res, 200, "No admin to notify (skipped)", {
+                        notifiedAdmins: 0,
+                        adminIds: [],
+                    });
+                }
+                // 5. Tạo tiêu đề và nội dung thông báo
+                const title = requestType === "leave"
+                    ? "Đơn xin nghỉ phép mới"
+                    : "Đơn làm thêm giờ mới";
+                const message = `${employeeName} đã gửi ${requestDetails}`;
+                // 6. Gửi thông báo qua NotificationService
+                const notificationService = notificationService_1.default.getInstance();
+                await notificationService.createAndSendNotification({
+                    title,
+                    message,
+                    type: requestType, // leave | overtime
+                    priority: "high",
+                    recipientIds: adminIds,
+                    senderId: req.user?._id,
+                    data: {
+                        requestType,
+                        requestId,
+                        employeeName,
+                        requestDetails,
+                    },
+                });
+                // 7. Trả kết quả thành công
+                return (0, responseHandler_1.CreateSuccessResponse)(res, 200, "Admin notification sent successfully", {
+                    notifiedAdmins: adminIds.length,
+                    adminIds,
+                });
+            }
+            catch (error) {
+                return (0, responseHandler_1.CreateErrorResponse)(res, 500, "Failed to send admin notification");
             }
         };
         this.firebaseService = firebaseService_1.default.getInstance();
@@ -190,7 +287,6 @@ class NotificationController {
             const objectIds = userIds.map((id) => new mongoose_1.default.Types.ObjectId(id));
             const tokens = await fcmToken_1.default.getActiveTokensForUsers(objectIds);
             if (tokens.length === 0) {
-                console.log("No active FCM tokens found for users");
                 return;
             }
             const tokenStrings = tokens.map((t) => t.token);

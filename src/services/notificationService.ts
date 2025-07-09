@@ -67,11 +67,13 @@ class NotificationService {
 
       // Gửi push notification nếu không phải scheduled hoặc đã đến thời gian
       if (!scheduledAt || scheduledAt <= new Date()) {
+        // Convert all data values to string for FCM
+        const safeData = this.stringifyDataValues(data);
         await this.sendPushNotificationToUsers(
           recipientIds,
           title,
           message,
-          data
+          safeData
         );
       }
 
@@ -191,10 +193,10 @@ class NotificationService {
         type: "leave",
         priority: "high",
         recipientIds,
-        data: {
+        data: this.stringifyDataValues({
           ...data,
           leaveType: type,
-        },
+        }),
       });
     } catch (error) {
       console.error("Error sending leave notification:", error);
@@ -251,16 +253,26 @@ class NotificationService {
       }
 
       const tokenStrings = tokens.map((t: any) => t.token);
-
+      // Convert all data values to string for FCM
+      const safeData = this.stringifyDataValues(data);
       await this.firebaseService.sendNotificationToMultipleDevices(
         tokenStrings,
         title,
         message,
-        data
+        safeData
       );
     } catch (error) {
       console.error("Error sending push notification:", error);
     }
+  }
+
+  private stringifyDataValues(data: any): { [key: string]: string } {
+    const result: { [key: string]: string } = {};
+    for (const key in data) {
+      if (data[key] === undefined || data[key] === null) continue;
+      result[key] = typeof data[key] === "string" ? data[key] : JSON.stringify(data[key]);
+    }
+    return result;
   }
 
   /**

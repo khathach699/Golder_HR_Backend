@@ -22,34 +22,34 @@ class NotificationScheduler {
      */
     start() {
         if (this.isRunning) {
-            console.log('Notification scheduler is already running');
+            console.log("Notification scheduler is already running");
             return;
         }
         // Chạy mỗi phút để check scheduled notifications
-        node_cron_1.default.schedule('* * * * *', async () => {
+        node_cron_1.default.schedule("* * * * *", async () => {
             await this.processScheduledNotifications();
         });
         // Chạy mỗi ngày lúc 9:00 AM để gửi daily reminders
-        node_cron_1.default.schedule('0 9 * * *', async () => {
+        node_cron_1.default.schedule("0 9 * * *", async () => {
             await this.sendDailyReminders();
         });
         // Chạy mỗi thứ 2 lúc 9:00 AM để gửi weekly reminders
-        node_cron_1.default.schedule('0 9 * * 1', async () => {
+        node_cron_1.default.schedule("0 9 * * 1", async () => {
             await this.sendWeeklyReminders();
         });
         // Cleanup expired notifications mỗi ngày lúc 2:00 AM
-        node_cron_1.default.schedule('0 2 * * *', async () => {
+        node_cron_1.default.schedule("0 2 * * *", async () => {
             await this.cleanupExpiredNotifications();
         });
         this.isRunning = true;
-        console.log('Notification scheduler started');
+        console.log("Notification scheduler started");
     }
     /**
      * Dừng scheduler
      */
     stop() {
         this.isRunning = false;
-        console.log('Notification scheduler stopped');
+        console.log("Notification scheduler stopped");
     }
     /**
      * Xử lý scheduled notifications
@@ -61,17 +61,14 @@ class NotificationScheduler {
             const scheduledNotifications = await notification_1.default.find({
                 scheduledAt: { $lte: now },
                 isActive: true,
-                $or: [
-                    { expiresAt: { $gt: now } },
-                    { expiresAt: { $exists: false } }
-                ]
-            }).populate('recipients.userId', 'email name');
+                $or: [{ expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
+            }).populate("recipients.userId", "email name");
             for (const notification of scheduledNotifications) {
                 try {
                     // Lấy danh sách user IDs
                     const userIds = notification.recipients.map((r) => r.userId._id.toString());
                     // Gửi push notification
-                    await this.notificationService['sendPushNotificationToUsers'](userIds, notification.title, notification.message, notification.data);
+                    await this.notificationService["sendPushNotificationToUsers"](userIds, notification.title, notification.message, notification.data);
                     // Cập nhật notification để không gửi lại
                     notification.scheduledAt = undefined;
                     await notification.save();
@@ -83,7 +80,7 @@ class NotificationScheduler {
             }
         }
         catch (error) {
-            console.error('Error processing scheduled notifications:', error);
+            console.error("Error processing scheduled notifications:", error);
         }
     }
     /**
@@ -93,18 +90,18 @@ class NotificationScheduler {
         try {
             // Ví dụ: Nhắc nhở chấm công
             await this.notificationService.sendTopicNotification({
-                topic: 'all_employees',
-                title: 'Nhắc nhở chấm công',
-                message: 'Đừng quên chấm công khi đến và rời khỏi văn phòng!',
+                topic: "all_employees",
+                title: "Nhắc nhở chấm công",
+                message: "Đừng quên chấm công khi đến và rời khỏi văn phòng!",
                 data: {
-                    type: 'daily_reminder',
-                    category: 'attendance'
-                }
+                    type: "daily_reminder",
+                    category: "attendance",
+                },
             });
-            console.log('Daily reminders sent');
+            console.log("Daily reminders sent");
         }
         catch (error) {
-            console.error('Error sending daily reminders:', error);
+            console.error("Error sending daily reminders:", error);
         }
     }
     /**
@@ -114,18 +111,18 @@ class NotificationScheduler {
         try {
             // Ví dụ: Báo cáo tuần
             await this.notificationService.sendTopicNotification({
-                topic: 'all_employees',
-                title: 'Báo cáo tuần',
-                message: 'Hãy xem lại báo cáo chấm công tuần này và liên hệ HR nếu có sai sót.',
+                topic: "all_employees",
+                title: "Báo cáo tuần",
+                message: "Hãy xem lại báo cáo chấm công tuần này và liên hệ HR nếu có sai sót.",
                 data: {
-                    type: 'weekly_reminder',
-                    category: 'report'
-                }
+                    type: "weekly_reminder",
+                    category: "report",
+                },
             });
-            console.log('Weekly reminders sent');
+            console.log("Weekly reminders sent");
         }
         catch (error) {
-            console.error('Error sending weekly reminders:', error);
+            console.error("Error sending weekly reminders:", error);
         }
     }
     /**
@@ -137,14 +134,14 @@ class NotificationScheduler {
             // Deactivate expired notifications
             const result = await notification_1.default.updateMany({
                 expiresAt: { $lt: now },
-                isActive: true
+                isActive: true,
             }, {
-                isActive: false
+                isActive: false,
             });
             console.log(`Cleaned up ${result.modifiedCount} expired notifications`);
         }
         catch (error) {
-            console.error('Error cleaning up expired notifications:', error);
+            console.error("Error cleaning up expired notifications:", error);
         }
     }
     /**
@@ -154,10 +151,10 @@ class NotificationScheduler {
         try {
             // Implement birthday logic here
             // This would typically check user birthdays and send notifications
-            console.log('Birthday reminders feature - to be implemented');
+            console.log("Birthday reminders feature - to be implemented");
         }
         catch (error) {
-            console.error('Error sending birthday reminders:', error);
+            console.error("Error sending birthday reminders:", error);
         }
     }
     /**
@@ -166,10 +163,10 @@ class NotificationScheduler {
     async sendMeetingReminders() {
         try {
             // Implement meeting reminder logic here
-            console.log('Meeting reminders feature - to be implemented');
+            console.log("Meeting reminders feature - to be implemented");
         }
         catch (error) {
-            console.error('Error sending meeting reminders:', error);
+            console.error("Error sending meeting reminders:", error);
         }
     }
 }

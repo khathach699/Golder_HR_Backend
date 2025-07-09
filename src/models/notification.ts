@@ -14,7 +14,10 @@ export interface INotification extends Document {
     | "overtime"
     | "submitLeaveRequest"
     | "approveLeaveRequest"
-    | "rejectLeaveRequest";
+    | "rejectLeaveRequest"
+    | "overtime_approved"
+    | "overtime_rejected"
+    | "calendar";
 
   priority: "low" | "medium" | "high" | "urgent";
   recipients: {
@@ -58,6 +61,9 @@ const NotificationSchema: Schema = new Schema(
         "submitLeaveRequest",
         "approveLeaveRequest",
         "rejectLeaveRequest",
+        "overtime_approved",
+        "overtime_rejected",
+        "calendar",
       ],
       default: "system",
       required: true,

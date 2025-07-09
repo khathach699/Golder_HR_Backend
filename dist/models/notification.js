@@ -56,6 +56,12 @@ const NotificationSchema = new mongoose_1.Schema({
             "announcement",
             "reminder",
             "custom",
+            "overtime",
+            "submitLeaveRequest",
+            "approveLeaveRequest",
+            "rejectLeaveRequest",
+            "overtime_approved",
+            "overtime_rejected",
         ],
         default: "system",
         required: true,
@@ -74,6 +80,10 @@ const NotificationSchema = new mongoose_1.Schema({
                 required: true,
             },
             isRead: {
+                type: Boolean,
+                default: false,
+            },
+            isDeleted: {
                 type: Boolean,
                 default: false,
             },
@@ -136,6 +146,7 @@ NotificationSchema.statics.getForUser = function (userId, options = {}) {
     const { page = 1, limit = 20, type, isRead, priority } = options;
     const query = {
         "recipients.userId": userId,
+        "recipients.isDeleted": false,
         isActive: true,
         $and: [
             {
@@ -170,6 +181,7 @@ NotificationSchema.statics.getUnreadCount = function (userId) {
     return this.countDocuments({
         "recipients.userId": userId,
         "recipients.isRead": false,
+        "recipients.isDeleted": false,
         isActive: true,
         $and: [
             {

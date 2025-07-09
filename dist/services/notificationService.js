@@ -42,7 +42,9 @@ class NotificationService {
             await notification.save();
             // Gửi push notification nếu không phải scheduled hoặc đã đến thời gian
             if (!scheduledAt || scheduledAt <= new Date()) {
-                await this.sendPushNotificationToUsers(recipientIds, title, message, data);
+                // Convert all data values to string for FCM
+                const safeData = this.stringifyDataValues(data);
+                await this.sendPushNotificationToUsers(recipientIds, title, message, safeData);
             }
             return notification;
         }
@@ -118,10 +120,10 @@ class NotificationService {
                 type: "leave",
                 priority: "high",
                 recipientIds,
-                data: {
+                data: this.stringifyDataValues({
                     ...data,
                     leaveType: type,
-                },
+                }),
             });
         }
         catch (error) {
@@ -161,11 +163,22 @@ class NotificationService {
                 return;
             }
             const tokenStrings = tokens.map((t) => t.token);
-            await this.firebaseService.sendNotificationToMultipleDevices(tokenStrings, title, message, data);
+            // Convert all data values to string for FCM
+            const safeData = this.stringifyDataValues(data);
+            await this.firebaseService.sendNotificationToMultipleDevices(tokenStrings, title, message, safeData);
         }
         catch (error) {
             console.error("Error sending push notification:", error);
         }
+    }
+    stringifyDataValues(data) {
+        const result = {};
+        for (const key in data) {
+            if (data[key] === undefined || data[key] === null)
+                continue;
+            result[key] = typeof data[key] === "string" ? data[key] : JSON.stringify(data[key]);
+        }
+        return result;
     }
     /**
      * Gửi notification đến topic
@@ -205,11 +218,12 @@ class NotificationService {
      */
     async sendOvertimeRequestNotification(overtimeRequest) {
         try {
-            // Get all HR and admin users
-            const hrUsers = await user_1.default.find({
-                role: { $in: ["admin", "hr"] },
+            // Get all HR and admin users - need to populate role to check role name
+            const allUsers = await user_1.default.find({
                 isActive: true,
-            });
+            }).populate("role");
+            // Filter users with admin or hr role
+            const hrUsers = allUsers.filter((user) => user.role && ["admin", "hr"].includes(user.role.name));
             if (hrUsers.length === 0)
                 return;
             const recipientIds = hrUsers.map((user) => user._id?.toString() || "");
@@ -267,6 +281,38 @@ class NotificationService {
         }
         catch (error) {
             console.error("Error sending overtime approval notification:", error);
+        }
+    }
+    async getUnreadCount(userId) {
+        try {
+            return await notification_1.default.countDocuments({
+                recipients: {
+                    $elemMatch: {
+                        userId: new mongoose_1.default.Types.ObjectId(userId),
+                        isRead: false,
+                    },
+                },
+            });
+        }
+        catch (error) {
+            console.error("Lỗi khi lấy số lượng thông báo chưa đọc:", error);
+            throw error;
+        }
+    }
+    async deleteNotificationForUser(notificationId, userId) {
+        try {
+            await notification_1.default.updateOne({
+                _id: notificationId,
+                "recipients.userId": userId,
+            }, {
+                $set: {
+                    "recipients.$.isDeleted": true,
+                },
+            });
+        }
+        catch (error) {
+            console.error("Lỗi khi xóa thông báo cho người dùng:", error);
+            throw error;
         }
     }
 }

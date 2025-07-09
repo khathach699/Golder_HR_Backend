@@ -1,4 +1,5 @@
 "use strict";
+// Filename: fcmToken.model.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -76,7 +77,6 @@ const FCMTokenSchema = new mongoose_1.Schema({
 });
 // Indexes for better performance
 FCMTokenSchema.index({ userId: 1, isActive: 1 });
-FCMTokenSchema.index({ token: 1 }, { unique: true });
 FCMTokenSchema.index({ deviceId: 1 });
 FCMTokenSchema.index({ lastUsed: 1 });
 // Static method to get active tokens for a user

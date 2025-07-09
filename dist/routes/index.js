@@ -11,8 +11,10 @@ const notificationRoutes_1 = __importDefault(require("./notificationRoutes"));
 const overtimeRoutes_1 = __importDefault(require("./overtimeRoutes"));
 const leaveRoutes_1 = __importDefault(require("./leaveRoutes"));
 const adminUserRoutes_1 = __importDefault(require("./adminUserRoutes"));
+const roleRoutes_1 = __importDefault(require("./roleRoutes"));
+const departmentRoutes_1 = __importDefault(require("./departmentRoutes"));
+const calendarRoutes_1 = __importDefault(require("./calendarRoutes"));
 const router = (0, express_1.Router)();
-console.log("🔍 [DEBUG] Admin user router loaded:", !!adminUserRoutes_1.default);
 // Health check endpoint for Docker
 router.get("/health", (req, res) => {
     res.status(200).json({
@@ -30,6 +32,8 @@ router.use("/department-salary", departmentSalaryRoutes_1.default);
 router.use("/notifications", notificationRoutes_1.default);
 router.use("/overtime", overtimeRoutes_1.default);
 router.use("/leave", leaveRoutes_1.default);
-console.log("🔍 [DEBUG] Mounting admin user router at /admin/users");
+router.use("/calendar", calendarRoutes_1.default);
 router.use("/admin/users", adminUserRoutes_1.default);
+router.use("/admin/roles", roleRoutes_1.default);
+router.use("/admin/departments", departmentRoutes_1.default);
 exports.default = router;

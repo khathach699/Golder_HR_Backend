@@ -14,7 +14,7 @@ const organizationSchema = new mongoose_1.Schema({
     code: {
         type: String,
         unique: true,
-        sparse: true, // Cho phép null/undefined
+        sparse: true,
         trim: true,
     },
     isActive: {
@@ -44,9 +44,7 @@ const organizationSchema = new mongoose_1.Schema({
         default: null,
     },
 }, { timestamps: true });
-// Indexes để tối ưu query
 organizationSchema.index({ name: 1 });
-organizationSchema.index({ code: 1 });
 organizationSchema.index({ isActive: 1, isdeleted: 1, isdisable: 1 });
 organizationSchema.index({ parentId: 1 });
 exports.default = (0, mongoose_1.model)("Organization", organizationSchema);

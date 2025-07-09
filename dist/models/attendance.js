@@ -28,7 +28,7 @@ const attendanceEntrySchema = new mongoose_1.Schema({
 }, { _id: false });
 const attendanceSchema = new mongoose_1.Schema({
     employeeId: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
-    workDate: { type: String, required: true, index: true },
+    workDate: { type: String, required: true },
     checkIns: [{ type: attendanceEntrySchema }],
     checkOuts: [{ type: attendanceEntrySchema }],
     // Backward compatibility fields - optional

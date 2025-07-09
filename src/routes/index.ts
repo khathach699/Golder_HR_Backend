@@ -8,6 +8,7 @@ import leaveRouter from "./leaveRoutes";
 import adminUserRouter from "./adminUserRoutes";
 import roleRouter from "./roleRoutes";
 import departmentRouter from "./departmentRoutes";
+import calendarRouter from "./calendarRoutes";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use("/department-salary", departmentSalaryRouter);
 router.use("/notifications", notificationRouter);
 router.use("/overtime", overtimeRouter);
 router.use("/leave", leaveRouter);
+router.use("/calendar", calendarRouter);
 router.use("/admin/users", adminUserRouter);
 router.use("/admin/roles", roleRouter);
 router.use("/admin/departments", departmentRouter);
