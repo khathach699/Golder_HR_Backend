@@ -62,6 +62,7 @@ const NotificationSchema = new mongoose_1.Schema({
             "rejectLeaveRequest",
             "overtime_approved",
             "overtime_rejected",
+            "calendar",
         ],
         default: "system",
         required: true,

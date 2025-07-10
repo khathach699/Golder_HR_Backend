@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.socketService = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 // Load environment variables first
 dotenv_1.default.config();
@@ -13,12 +14,14 @@ const morgan_1 = __importDefault(require("morgan"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
+const http_1 = require("http");
 const index_1 = __importDefault(require("./routes/index"));
 const errorhandlers_1 = require("./middlewares/errorhandlers");
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./utils/swagger");
 const notificationScheduler_1 = __importDefault(require("./services/notificationScheduler"));
 const leaveService_1 = require("./services/leaveService");
+const socketService_1 = require("./services/socketService");
 const PORT = process.env.PORT || 3000;
 const MONGO_URL = process.env.MONGO_URL;
 const COOKIE_SECRET = process.env.COOKIE_SECRET || "your_cookie_secret_here";
@@ -26,8 +29,12 @@ if (!MONGO_URL) {
     console.error("MONGO_URL environment variable is not defined!");
     process.exit(1);
 }
-// Create Express app
+// Create Express app and HTTP server
 const app = (0, express_1.default)();
+const server = (0, http_1.createServer)(app);
+// Initialize Socket.IO service
+const socketService = new socketService_1.SocketService(server);
+exports.socketService = socketService;
 // Connect to MongoDB
 mongoose_1.default
     .connect(MONGO_URL)
@@ -67,10 +74,11 @@ leaveService_1.LeaveService.initializeLeavePolicies()
 // Start notification scheduler
 const notificationScheduler = notificationScheduler_1.default.getInstance();
 notificationScheduler.start();
-// Start server
-app.listen(PORT, () => {
-    console.log("Server is running on port " + PORT);
-    console.log("Swagger UI available at http://localhost:" + PORT + "/api-docs");
-    console.log("Notification scheduler started");
+// Start server with Socket.IO
+server.listen(PORT, () => {
+    console.log("🚀 Server is running on port " + PORT);
+    console.log("📚 Swagger UI available at http://localhost:" + PORT + "/api-docs");
+    console.log("🔔 Notification scheduler started");
+    console.log("💬 Socket.IO server initialized for real-time chat");
 });
 exports.default = app;

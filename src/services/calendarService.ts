@@ -21,7 +21,12 @@ export const createCalendarEvent = async (
     throw new Error("End time must be after start time");
   }
 
-  if (endTime && startTime < new Date()) {
+  // Check if start date is in the past (only compare dates, not time)
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startDateOnly = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate());
+
+  if (startDateOnly < today) {
     throw new Error("Cannot create event in the past");
   }
 
@@ -111,8 +116,8 @@ export const getCalendarEvents = async (
   // Chạy song song 2 query để tối ưu hiệu năng
   const [events, total] = await Promise.all([
     CalendarModel.find(finalFilter)
-      .populate("createdBy", "firstName lastName email")
-      .populate("attendees", "firstName lastName email")
+      .populate("createdBy", "fullname email avatar department position")
+      .populate("attendees", "fullname email avatar department position")
       .sort({ startTime: 1 }) // Sắp xếp theo thời gian bắt đầu
       .skip(skip)
       .limit(limit)
@@ -135,8 +140,8 @@ export const getCalendarEventById = async (
       { attendees: new Types.ObjectId(userId) },
     ],
   })
-    .populate("createdBy", "firstName lastName email")
-    .populate("attendees", "firstName lastName email");
+    .populate("createdBy", "fullname email avatar department position")
+    .populate("attendees", "fullname email avatar department position");
 
   return event;
 };
@@ -276,8 +281,8 @@ export const getWeeklyEvents = async (
       { startTime: { $lt: weekEnd } },
     ],
   })
-    .populate("createdBy", "firstName lastName email")
-    .populate("attendees", "firstName lastName email")
+    .populate("createdBy", "fullname email avatar department position")
+    .populate("attendees", "fullname email avatar department position")
     .sort({ startTime: 1 })
     .lean();
 
@@ -308,8 +313,8 @@ export const checkEventConflicts = async (
   }
 
   const conflicts = await CalendarModel.find(filter)
-    .populate("createdBy", "firstName lastName email")
-    .populate("attendees", "firstName lastName email")
+    .populate("createdBy", "fullname email avatar department position")
+    .populate("attendees", "fullname email avatar department position")
     .sort({ startTime: 1 })
     .lean();
 
@@ -399,8 +404,8 @@ export const getEventsInDateRange = async (
       { startTime: { $lte: endDate } },
     ],
   })
-    .populate("createdBy", "firstName lastName email")
-    .populate("attendees", "firstName lastName email")
+    .populate("createdBy", "fullname email avatar department position")
+    .populate("attendees", "fullname email avatar department position")
     .sort({ startTime: 1 })
     .lean();
 
@@ -431,8 +436,8 @@ export const getUpcomingEvents = async (
     ],
     startTime: { $gte: now },
   })
-    .populate("createdBy", "firstName lastName email")
-    .populate("attendees", "firstName lastName email")
+    .populate("createdBy", "fullname email avatar department position")
+    .populate("attendees", "fullname email avatar department position")
     .sort({ startTime: 1 })
     .limit(limit)
     .lean();

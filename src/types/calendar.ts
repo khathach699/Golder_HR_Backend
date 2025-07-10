@@ -1,12 +1,14 @@
 import { Document, Types } from "mongoose";
 
 // Helper type để định nghĩa thông tin user sau khi được populate
-// Giúp cho code an toàn hơn khi truy cập user.firstName, user.email, ...
+// Giúp cho code an toàn hơn khi truy cập user.fullname, user.email, ...
 export interface PopulatedUser {
   _id: Types.ObjectId;
-  firstName: string;
-  lastName: string;
+  fullname: string;
   email: string;
+  avatar?: string;
+  department?: string;
+  position?: string;
 }
 
 export interface CalendarEvent {

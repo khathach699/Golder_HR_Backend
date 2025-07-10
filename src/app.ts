@@ -9,12 +9,14 @@ import morgan from "morgan";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+import { createServer } from "http";
 import routes from "./routes/index";
 import { errorHandler, notFoundHandler } from "./middlewares/errorhandlers";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./utils/swagger";
 import NotificationScheduler from "./services/notificationScheduler";
 import { LeaveService } from "./services/leaveService";
+import { SocketService, socketService as socketServiceInstance } from "./services/socketService";
 
 const PORT = process.env.PORT || 3000;
 const MONGO_URL = process.env.MONGO_URL;
@@ -25,8 +27,14 @@ if (!MONGO_URL) {
   process.exit(1);
 }
 
-// Create Express app
+// Create Express app and HTTP server
 const app: Express = express();
+const server = createServer(app);
+
+// Initialize Socket.IO service
+const socketService = new SocketService(server);
+// Export for use in other modules
+export { socketService };
 
 // Connect to MongoDB
 mongoose
@@ -76,11 +84,12 @@ LeaveService.initializeLeavePolicies()
 const notificationScheduler = NotificationScheduler.getInstance();
 notificationScheduler.start();
 
-// Start server
-app.listen(PORT, () => {
-  console.log("Server is running on port " + PORT);
-  console.log("Swagger UI available at http://localhost:" + PORT + "/api-docs");
-  console.log("Notification scheduler started");
+// Start server with Socket.IO
+server.listen(PORT, () => {
+  console.log("🚀 Server is running on port " + PORT);
+  console.log("📚 Swagger UI available at http://localhost:" + PORT + "/api-docs");
+  console.log("🔔 Notification scheduler started");
+  console.log("💬 Socket.IO server initialized for real-time chat");
 });
 
 export default app;
