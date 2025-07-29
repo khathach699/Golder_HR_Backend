@@ -40,6 +40,7 @@ const attendanceController = __importStar(require("../controllers/attendanceCont
 const express_1 = require("express");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const multer_1 = __importDefault(require("multer"));
+const manualAttendanceRoutes_1 = __importDefault(require("./manualAttendanceRoutes"));
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 const router = (0, express_1.Router)();
 router.post("/check-in", upload.single("image"), authMiddleware_1.authenticateToken, attendanceController.checkIn);
@@ -54,4 +55,6 @@ router.get("/summary/month", authMiddleware_1.authenticateToken, attendanceContr
 router.get("/monthly-details", authMiddleware_1.authenticateToken, attendanceController.getMonthlyDetails);
 router.get("/daily-details", authMiddleware_1.authenticateToken, attendanceController.getDailyAttendanceDetails);
 router.get("/history", authMiddleware_1.authenticateToken, attendanceController.getHistory);
+// Manual attendance routes
+router.use("/manual-attendance", manualAttendanceRoutes_1.default);
 exports.default = router;

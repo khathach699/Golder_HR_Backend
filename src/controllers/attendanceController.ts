@@ -60,19 +60,30 @@ export const checkIn = async (req: Request, res: Response) => {
       return CreateErrorResponse(res, 400, "No image file provided");
     }
 
-    const { location: locationString } = req.body; // Lấy location dưới dạng chuỗi
+    const { location: locationString, deviceInfo: deviceInfoString } = req.body; // Lấy location và deviceInfo
 
     if (!locationString) {
       return CreateErrorResponse(res, 400, "Location data is required");
     }
 
     let locationData;
+    let deviceInfo = null;
+
     try {
       // Parse toàn bộ chuỗi location
       locationData = JSON.parse(locationString);
     } catch (e) {
       // Nếu parse lỗi -> dữ liệu không hợp lệ
       return CreateErrorResponse(res, 400, "Invalid location JSON format");
+    }
+
+    // Parse device info if provided
+    if (deviceInfoString) {
+      try {
+        deviceInfo = JSON.parse(deviceInfoString);
+      } catch (e) {
+        console.warn('Invalid device info format, continuing without device info');
+      }
     }
 
     // Bây giờ kiểm tra các thuộc tính bên trong đối tượng đã parse
@@ -93,7 +104,7 @@ export const checkIn = async (req: Request, res: Response) => {
     // locationData sẽ có dạng { coordinates: [106.6, 10.8], address: "..." }
     // Kiểu dữ liệu của coordinates đã là array, không cần parse lại
 
-    const attendance = await CheckIn(userId, req.file.buffer, locationData);
+    const attendance = await CheckIn(userId, req.file.buffer, locationData, deviceInfo);
 
     return CreateSuccessResponse(res, 200, { attendance });
   } catch (error: any) {
@@ -156,8 +167,8 @@ export const checkOut = async (req: Request, res: Response) => {
       return CreateErrorResponse(res, 400, "No image file provided");
     }
 
-    // 2. Lấy chuỗi location từ req.body
-    const { location: locationString } = req.body;
+    // 2. Lấy chuỗi location và deviceInfo từ req.body
+    const { location: locationString, deviceInfo: deviceInfoString } = req.body;
     if (!locationString || typeof locationString !== "string") {
       return CreateErrorResponse(
         res,
@@ -168,10 +179,21 @@ export const checkOut = async (req: Request, res: Response) => {
 
     // 3. Phân tích chuỗi JSON an toàn
     let locationData;
+    let deviceInfo = null;
+
     try {
       locationData = JSON.parse(locationString);
     } catch (e) {
       return CreateErrorResponse(res, 400, "Invalid location JSON format");
+    }
+
+    // Parse device info if provided
+    if (deviceInfoString) {
+      try {
+        deviceInfo = JSON.parse(deviceInfoString);
+      } catch (e) {
+        console.warn('Invalid device info format, continuing without device info');
+      }
     }
 
     // 4. Kiểm tra cấu trúc của đối tượng location đã parse
@@ -189,7 +211,7 @@ export const checkOut = async (req: Request, res: Response) => {
     }
 
     // 5. Gọi service với dữ liệu đã được xác thực
-    const attendance = await CheckOut(userId, req.file.buffer, locationData);
+    const attendance = await CheckOut(userId, req.file.buffer, locationData, deviceInfo);
 
     return CreateSuccessResponse(res, 200, { attendance });
   } catch (error: any) {

@@ -52,6 +52,7 @@ export const CheckIn = async (
   userId: string,
   image: Buffer,
   locationInput: InputLocationData,
+  deviceInfo?: any,
   _departmentId?: string
 ): Promise<AttendanceDocument> => {
   const user = await User.findById(userId);
@@ -104,6 +105,7 @@ export const CheckIn = async (
     time: checkInTime,
     imageUrl,
     location: locationForDb,
+    deviceInfo: deviceInfo || null,
   };
 
   // Ensure arrays exist
@@ -152,6 +154,7 @@ export const CheckOut = async (
   userId: string,
   image: Buffer,
   locationInput: InputLocationData,
+  deviceInfo?: any,
   _departmentId?: string
 ): Promise<AttendanceDocument> => {
   const user = await User.findById(userId);
@@ -198,6 +201,7 @@ export const CheckOut = async (
     time: checkOutTime,
     imageUrl,
     location: locationForDb,
+    deviceInfo: deviceInfo || null,
   };
 
   // Ensure arrays exist

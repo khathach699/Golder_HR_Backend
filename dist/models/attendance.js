@@ -10,8 +10,8 @@ const locationSchema = new mongoose_1.Schema({
 }, { _id: false });
 const attendanceEntrySchema = new mongoose_1.Schema({
     time: { type: Date, required: true },
-    imageUrl: { type: String, required: true },
-    location: { type: locationSchema, required: true },
+    imageUrl: { type: String, required: false }, // Make optional for manual attendance
+    location: { type: locationSchema, required: false }, // Make optional for manual attendance
     // TODO: Tạm thời làm optional để tập trung vào chấm công nhiều lần
     departmentId: {
         type: mongoose_1.Schema.Types.ObjectId,
@@ -24,6 +24,22 @@ const attendanceEntrySchema = new mongoose_1.Schema({
         required: false, // Tạm thời không bắt buộc
         min: 0,
         default: 0,
+    },
+    // Manual attendance fields
+    isManual: { type: Boolean, default: false },
+    manualAttendanceId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "ManualAttendance",
+        required: false
+    },
+    // Device information for tracking
+    deviceInfo: {
+        deviceId: { type: String }, // Unique device identifier
+        platform: { type: String }, // iOS, Android, etc.
+        model: { type: String },
+        brand: { type: String },
+        version: { type: String },
+        appVersion: { type: String },
     },
 }, { _id: false });
 const attendanceSchema = new mongoose_1.Schema({

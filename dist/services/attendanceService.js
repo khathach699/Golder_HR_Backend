@@ -41,7 +41,7 @@ exports.calculateOvertime = calculateOvertime;
 /**
  * Handle employee check-in with face verification
  */
-const CheckIn = async (userId, image, locationInput, _departmentId) => {
+const CheckIn = async (userId, image, locationInput, deviceInfo, _departmentId) => {
     const user = await user_1.default.findById(userId);
     if (!user || !user.referenceImageUrl) {
         throw new Error(constants_1.AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
@@ -83,6 +83,7 @@ const CheckIn = async (userId, image, locationInput, _departmentId) => {
         time: checkInTime,
         imageUrl,
         location: locationForDb,
+        deviceInfo: deviceInfo || null,
     };
     // Ensure arrays exist
     if (!attendance.checkIns) {
@@ -116,7 +117,7 @@ exports.CheckIn = CheckIn;
 /**
  * Handle employee check-out with face verification
  */
-const CheckOut = async (userId, image, locationInput, _departmentId) => {
+const CheckOut = async (userId, image, locationInput, deviceInfo, _departmentId) => {
     const user = await user_1.default.findById(userId);
     if (!user || !user.referenceImageUrl) {
         throw new Error(constants_1.AUTH_ERRORS.USER_NOT_FOUND_OR_NO_REFERENCE_IMAGE);
@@ -152,6 +153,7 @@ const CheckOut = async (userId, image, locationInput, _departmentId) => {
         time: checkOutTime,
         imageUrl,
         location: locationForDb,
+        deviceInfo: deviceInfo || null,
     };
     // Ensure arrays exist
     if (!attendance.checkIns) {

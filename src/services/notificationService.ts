@@ -67,8 +67,23 @@ class NotificationService {
 
       // Gửi push notification nếu không phải scheduled hoặc đã đến thời gian
       if (!scheduledAt || scheduledAt <= new Date()) {
-        // Convert all data values to string for FCM
-        const safeData = this.stringifyDataValues(data);
+        // Tạo full notification data cho Firebase
+        const fullNotificationData = {
+          ...data,
+          notificationId: notification._id.toString(),
+          type: type,
+          title: title,
+          message: message,
+          priority: priority,
+          timestamp: notification.createdAt || new Date(),
+          isRead: false,
+          isImportant: priority === 'high' || priority === 'urgent',
+          // Thêm các field cần thiết cho NotificationModel
+          category: this.mapTypeToCategory(type),
+          icon: this.getIconForType(type),
+          color: this.getColorForType(type),
+        };
+        const safeData = this.stringifyDataValues(fullNotificationData);
         await this.sendPushNotificationToUsers(
           recipientIds,
           title,
@@ -266,14 +281,7 @@ class NotificationService {
     }
   }
 
-  private stringifyDataValues(data: any): { [key: string]: string } {
-    const result: { [key: string]: string } = {};
-    for (const key in data) {
-      if (data[key] === undefined || data[key] === null) continue;
-      result[key] = typeof data[key] === "string" ? data[key] : JSON.stringify(data[key]);
-    }
-    return result;
-  }
+
 
   /**
    * Gửi notification đến topic
@@ -475,6 +483,88 @@ class NotificationService {
       console.error("Lỗi khi xóa thông báo cho người dùng:", error);
       throw error;
     }
+  }
+
+  /**
+   * Convert all data values to string for FCM compatibility
+   */
+  private stringifyDataValues(data: any): { [key: string]: string } {
+    const result: { [key: string]: string } = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== null && value !== undefined) {
+        result[key] = String(value);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Map notification type to category for Flutter app
+   */
+  private mapTypeToCategory(type: string): string {
+    const categoryMap: { [key: string]: string } = {
+      'system': 'system',
+      'attendance': 'system',
+      'leave': 'system',
+      'announcement': 'announcement',
+      'reminder': 'system',
+      'custom': 'custom',
+      'overtime': 'system',
+      'overtime_request': 'system',
+      'overtime_approved': 'system',
+      'overtime_rejected': 'system',
+      'submitLeaveRequest': 'system',
+      'approveLeaveRequest': 'system',
+      'rejectLeaveRequest': 'system',
+      'calendar': 'system',
+    };
+    return categoryMap[type] || 'system';
+  }
+
+  /**
+   * Get icon name for notification type (Flutter icon names)
+   */
+  private getIconForType(type: string): string {
+    const iconMap: { [key: string]: string } = {
+      'system': 'notifications',
+      'attendance': 'access_time',
+      'leave': 'event_available',
+      'announcement': 'campaign',
+      'reminder': 'alarm',
+      'custom': 'info',
+      'overtime': 'schedule',
+      'overtime_request': 'schedule',
+      'overtime_approved': 'check_circle',
+      'overtime_rejected': 'cancel',
+      'submitLeaveRequest': 'event_available',
+      'approveLeaveRequest': 'check_circle',
+      'rejectLeaveRequest': 'cancel',
+      'calendar': 'event',
+    };
+    return iconMap[type] || 'notifications';
+  }
+
+  /**
+   * Get color for notification type (hex color codes)
+   */
+  private getColorForType(type: string): string {
+    const colorMap: { [key: string]: string } = {
+      'system': '#2196F3',
+      'attendance': '#4CAF50',
+      'leave': '#FF9800',
+      'announcement': '#9C27B0',
+      'reminder': '#FF5722',
+      'custom': '#607D8B',
+      'overtime': '#3F51B5',
+      'overtime_request': '#3F51B5',
+      'overtime_approved': '#4CAF50',
+      'overtime_rejected': '#F44336',
+      'submitLeaveRequest': '#FF9800',
+      'approveLeaveRequest': '#4CAF50',
+      'rejectLeaveRequest': '#F44336',
+      'calendar': '#795548',
+    };
+    return colorMap[type] || '#2196F3';
   }
 }
 
