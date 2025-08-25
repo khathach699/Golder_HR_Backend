@@ -11,6 +11,7 @@ import departmentRouter from "./departmentRoutes";
 import calendarRouter from "./calendarRoutes";
 import teamRouter from "./teamRoutes";
 import taskRouter from "./taskRoutes";
+import manualAttendanceRouter from "./manualAttendanceRoutes";
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.use("/overtime", overtimeRouter);
 router.use("/leave", leaveRouter);
 router.use("/calendar", calendarRouter);
 router.use("/teams", teamRouter);
+router.use("/attendance/manual-attendance", manualAttendanceRouter);
 router.use("/tasks", taskRouter);
 router.use("/admin/users", adminUserRouter);
 router.use("/admin/roles", roleRouter);

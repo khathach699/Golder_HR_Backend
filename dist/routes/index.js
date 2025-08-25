@@ -16,6 +16,7 @@ const departmentRoutes_1 = __importDefault(require("./departmentRoutes"));
 const calendarRoutes_1 = __importDefault(require("./calendarRoutes"));
 const teamRoutes_1 = __importDefault(require("./teamRoutes"));
 const taskRoutes_1 = __importDefault(require("./taskRoutes"));
+const manualAttendanceRoutes_1 = __importDefault(require("./manualAttendanceRoutes"));
 const router = (0, express_1.Router)();
 // Health check endpoint for Docker
 router.get("/health", (req, res) => {
@@ -36,6 +37,7 @@ router.use("/overtime", overtimeRoutes_1.default);
 router.use("/leave", leaveRoutes_1.default);
 router.use("/calendar", calendarRoutes_1.default);
 router.use("/teams", teamRoutes_1.default);
+router.use("/attendance/manual-attendance", manualAttendanceRoutes_1.default);
 router.use("/tasks", taskRoutes_1.default);
 router.use("/admin/users", adminUserRoutes_1.default);
 router.use("/admin/roles", roleRoutes_1.default);
