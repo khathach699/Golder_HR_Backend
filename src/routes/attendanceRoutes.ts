@@ -6,7 +6,7 @@ import {
   check_authorization,
 } from "../middlewares/authMiddleware";
 import multer from "multer";
-import manualAttendanceRoutes from "./manualAttendanceRoutes";
+
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -77,7 +77,5 @@ router.get(
 
 router.get("/history", authenticateToken, attendanceController.getHistory);
 
-// Manual attendance routes
-router.use("/manual-attendance", manualAttendanceRoutes);
 
 export default router;
