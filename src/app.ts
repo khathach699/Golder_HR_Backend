@@ -2,39 +2,42 @@ import dotenv from "dotenv";
 // Load environment variables first
 dotenv.config();
 
-import express, { Express } from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import morgan from "morgan";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
-// import { createServer } from "http";
-import routes from "./routes/index";
-import { errorHandler, notFoundHandler } from "./middlewares/errorhandlers";
+import cors from "cors";
+import express, { Express } from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import { createServer } from "http";
+import mongoose from "mongoose";
+import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
-import { swaggerSpec } from "./utils/swagger";
-import NotificationScheduler from "./services/notificationScheduler";
+import { errorHandler, notFoundHandler } from "./middlewares/errorhandlers";
+import routes from "./routes/index";
 import { LeaveService } from "./services/leaveService";
-// import { SocketService, socketService as socketServiceInstance } from "./services/socketService";
+import NotificationScheduler from "./services/notificationScheduler";
+import { SocketService } from "./services/socketService";
+import { swaggerSpec } from "./utils/swagger";
 
+// ✅ Convert PORT to number to satisfy TypeScript
+const PORT: number = Number(process.env.PORT) || 3000;
 const MONGO_URL = process.env.MONGO_URL;
 const COOKIE_SECRET = process.env.COOKIE_SECRET || "your_cookie_secret_here";
 
+// ✅ Validate env variables
 if (!MONGO_URL) {
-  console.error("MONGO_URL environment variable is not defined!");
+  console.error("❌ MONGO_URL environment variable is not defined!");
   process.exit(1);
 }
 
-// Create Express app
+// ✅ Create Express app and HTTP server
 const app: Express = express();
-// const server = createServer(app); ❌ Không dùng server.listen nữa
+const server = createServer(app);
 
-// ⚠ Tạm thời không dùng Socket.IO khi deploy Vercel
-// const socketService = new SocketService(server);
-// export { socketService };
+// ✅ Initialize Socket.IO service
+const socketService = new SocketService(server);
+export { socketService };
 
-// Connect to MongoDB
+// ✅ Connect to MongoDB
 mongoose
   .connect(MONGO_URL)
   .then(() => {
@@ -45,7 +48,7 @@ mongoose
     process.exit(1);
   });
 
-// Middleware
+// ✅ Middleware
 app.use(helmet());
 app.use(
   rateLimit({
@@ -63,31 +66,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser(COOKIE_SECRET));
 
-// Swagger UI
+// ✅ Swagger UI
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Routes
+// ✅ Routes
 app.use("/api", routes);
 
-// Error handlers
+// ✅ Error handlers
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Initialize leave policies
+// ✅ Initialize leave policies
 LeaveService.initializeLeavePolicies()
   .then(() => console.log("✅ Leave policies initialized"))
-  .catch((error) => console.error("❌ Error initializing leave policies:", error));
+  .catch((error) =>
+    console.error("❌ Error initializing leave policies:", error)
+  );
 
-// Start notification scheduler (nếu phù hợp cho serverless)
+// ✅ Start notification scheduler
 const notificationScheduler = NotificationScheduler.getInstance();
 notificationScheduler.start();
 
-// ❌ KHÔNG DÙNG server.listen trên Vercel
-// server.listen(PORT, () => {
-//   console.log("🚀 Server is running on port " + PORT);
-//   console.log("📚 Swagger UI available at http://localhost:" + PORT + "/api-docs");
-//   console.log("🔔 Notification scheduler started");
-//   console.log("💬 Socket.IO server initialized for real-time chat");
-// });
+// ✅ Start server (must bind 0.0.0.0 for Render!)
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("🚀 Server is running on port " + PORT);
+  console.log(
+    "📚 Swagger UI available at http://localhost:" + PORT + "/api-docs"
+  );
+  console.log("🔔 Notification scheduler started");
+  console.log("💬 Socket.IO server initialized for real-time chat");
+});
 
 export default app;
